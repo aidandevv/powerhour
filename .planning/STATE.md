@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-13)
 
 **Core value:** The AI agent must answer financial questions accurately by querying real data — never hallucinate numbers, never expose credentials, never modify data.
-**Current focus:** Phase 1 - Security Foundation + Agent Tools
+**Current focus:** Phase 1 complete — ready for Phase 2 (AI Agent Loop)
 
 ## Current Position
 
-Phase: 1 of 4 (Security Foundation + Agent Tools)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-13 — Completed Plan 01-01 (security controls, pre-commit hook, DB views)
+Phase: 1 of 4 (Security Foundation + Agent Tools) — COMPLETE
+Plan: 2 of 2 in current phase — COMPLETE
+Status: Phase 1 complete, advance to Phase 2
+Last activity: 2026-02-13 — Completed Plan 01-02 (all five agent tool functions)
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 4 min
-- Total execution time: 0.07 hours
+- Total plans completed: 2
+- Average duration: 5 min
+- Total execution time: 0.17 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-security-foundation-agent-tools | 1/2 | 4 min | 4 min |
+| 01-security-foundation-agent-tools | 2/2 | 10 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 4 min
-- Trend: Baseline established
+- Last 5 plans: 4 min, 6 min
+- Trend: Consistent
 
 *Updated after each plan completion*
 
@@ -50,6 +50,10 @@ Recent decisions affecting current work:
 - [01-01]: NEXT_PUBLIC_GEMINI_API_KEY check uses =[^#] suffix — blocks assignments but allows comment/doc references
 - [01-01]: agent_accounts_view filters WHERE is_active = true — AI agent sees only actively tracked accounts
 - [01-01]: Custom SQL migration for views (drizzle-kit cannot auto-generate CREATE VIEW DDL); use .existing() for TypeScript type inference
+- [01-02]: Tool functions are plain async functions, not AI SDK tool() wrappers — AI SDK coupling deferred to Phase 2 for clean separation of concerns
+- [01-02]: transactionSearchSchema Zod schema exported from transaction-search.ts for Phase 2 AI SDK inputSchema reuse — avoids duplication
+- [01-02]: getAccountBalances queries agentAccountsView (never base institutions join) — view enforces SEC-03 at DB layer
+- [01-02]: Credit/loan balances treated as liabilities; depository/investment as assets — consistent net worth calculation
 
 ### Pending Todos
 
@@ -63,5 +67,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed Phase 1 Plan 01 (01-01-PLAN.md) — security controls complete
-Resume file: .planning/phases/01-security-foundation-agent-tools/01-02-PLAN.md
+Stopped at: Completed Phase 1 Plan 02 (01-02-PLAN.md) — all five agent tool functions complete
+Resume file: .planning/phases/02-ai-agent-loop/ (Phase 2 begins next)
