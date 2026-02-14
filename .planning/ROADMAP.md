@@ -29,11 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Agent tool queries execute only SELECT statements — any attempt to call INSERT, UPDATE, or DELETE from tool code is not possible by design
   4. The Gemini API key is absent from all client-side bundles and never appears in network responses
   5. Each of the five tools (spending summary, account balances, transaction search, trend comparison, recurring expenses) returns a valid response when called directly with test parameters
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Security controls setup (pre-commit hooks, gitignore audit, agent-facing DB views, auth middleware coverage)
-- [ ] 01-02: Agent tools implementation (TOOL-01 through TOOL-05 as isolated Drizzle query functions with read-only enforcement)
+- [ ] 01-01-PLAN.md — Security controls: Husky pre-commit hook, agent-facing DB views, .env.example audit
+- [ ] 01-02-PLAN.md — Agent tools: TOOL-01 through TOOL-05 as isolated Drizzle query functions
 
 ### Phase 2: ReAct Agent Core + Streaming Endpoint
 **Goal**: The ReAct agent executor drives a Gemini 2.5 Flash Lite loop that streams accurate, grounded financial answers — verifiable via curl before any UI exists
