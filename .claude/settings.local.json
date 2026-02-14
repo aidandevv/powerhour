@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lsof:*)",
+      "Bash(createuser:*)",
+      "Bash(createdb:*)"
+    ]
+  }
+}
