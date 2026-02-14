@@ -88,41 +88,41 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | — | Pending |
-| SEC-02 | — | Pending |
-| SEC-03 | — | Pending |
-| SEC-04 | — | Pending |
-| SEC-05 | — | Pending |
-| SEC-06 | — | Pending |
-| AGNT-01 | — | Pending |
-| AGNT-02 | — | Pending |
-| AGNT-03 | — | Pending |
-| AGNT-04 | — | Pending |
-| AGNT-05 | — | Pending |
-| AGNT-06 | — | Pending |
-| AGNT-07 | — | Pending |
-| TOOL-01 | — | Pending |
-| TOOL-02 | — | Pending |
-| TOOL-03 | — | Pending |
-| TOOL-04 | — | Pending |
-| TOOL-05 | — | Pending |
-| CHAT-01 | — | Pending |
-| CHAT-02 | — | Pending |
-| CHAT-03 | — | Pending |
-| CHAT-04 | — | Pending |
-| CHAT-05 | — | Pending |
-| PDF-01 | — | Pending |
-| PDF-02 | — | Pending |
-| PDF-03 | — | Pending |
-| PDF-04 | — | Pending |
-| PDF-05 | — | Pending |
-| PDF-06 | — | Pending |
+| SEC-01 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Pending |
+| SEC-03 | Phase 1 | Pending |
+| SEC-04 | Phase 1 | Pending |
+| SEC-05 | Phase 1 | Pending |
+| SEC-06 | Phase 1 | Pending |
+| AGNT-01 | Phase 2 | Pending |
+| AGNT-02 | Phase 2 | Pending |
+| AGNT-03 | Phase 3 | Pending |
+| AGNT-04 | Phase 3 | Pending |
+| AGNT-05 | Phase 2 | Pending |
+| AGNT-06 | Phase 2 | Pending |
+| AGNT-07 | Phase 2 | Pending |
+| TOOL-01 | Phase 1 | Pending |
+| TOOL-02 | Phase 1 | Pending |
+| TOOL-03 | Phase 1 | Pending |
+| TOOL-04 | Phase 1 | Pending |
+| TOOL-05 | Phase 1 | Pending |
+| CHAT-01 | Phase 3 | Pending |
+| CHAT-02 | Phase 3 | Pending |
+| CHAT-03 | Phase 3 | Pending |
+| CHAT-04 | Phase 3 | Pending |
+| CHAT-05 | Phase 3 | Pending |
+| PDF-01 | Phase 4 | Pending |
+| PDF-02 | Phase 4 | Pending |
+| PDF-03 | Phase 4 | Pending |
+| PDF-04 | Phase 4 | Pending |
+| PDF-05 | Phase 4 | Pending |
+| PDF-06 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 29 total
-- Mapped to phases: 0
-- Unmapped: 29 ⚠️
+- Mapped to phases: 29
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-13*
-*Last updated: 2026-02-13 after initial definition*
+*Last updated: 2026-02-13 after roadmap creation*
