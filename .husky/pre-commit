@@ -1,0 +1,44 @@
+#!/bin/sh
+# Scan staged files for secret patterns before commit
+# Blocks: real .env files, Plaid access tokens, Google/Gemini API keys
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+
+for file in $STAGED; do
+  # Block .env files (not .env.example or .env.test)
+  if echo "$file" | grep -qE '^\.env$|^\.env\.(local|production|development)$'; then
+    echo "ERROR: Attempting to commit $file — environment file blocked."
+    exit 1
+  fi
+
+  # Skip .husky/ scripts themselves (they contain pattern strings in error messages)
+  if echo "$file" | grep -qE '^\.husky/'; then
+    continue
+  fi
+
+  # Read staged file content
+  CONTENT=$(git show ":$file" 2>/dev/null)
+  if [ -z "$CONTENT" ]; then
+    continue
+  fi
+
+  # Block Plaid access tokens (all environments)
+  if echo "$CONTENT" | grep -qE 'access-(sandbox|development|production)-[0-9a-f]{8}-[0-9a-f]{4}'; then
+    echo "ERROR: Possible Plaid access token in $file. Commit blocked."
+    exit 1
+  fi
+
+  # Block Google/Gemini API keys (start with AIza, 39 chars total)
+  if echo "$CONTENT" | grep -qE 'AIza[0-9A-Za-z_-]{35}'; then
+    echo "ERROR: Possible Google/Gemini API key in $file. Commit blocked."
+    exit 1
+  fi
+
+  # Block NEXT_PUBLIC_ prefixed AI keys (SEC-04 violation)
+  if echo "$CONTENT" | grep -qE 'NEXT_PUBLIC_GEMINI_API_KEY=[^#]'; then
+    echo "ERROR: NEXT_PUBLIC_GEMINI_API_KEY assignment found in $file — API key must be server-side only (SEC-04). Commit blocked."
+    exit 1
+  fi
+done
+
+exit 0
