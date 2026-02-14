@@ -83,3 +83,48 @@ export interface SpendingTrend {
   month: string;
   amount: number;
 }
+
+export interface MerchantSpend {
+  name: string;
+  logoUrl: string | null;
+  amount: number;
+  count: number;
+}
+
+export interface DailySpend {
+  date: string;
+  amount: number;
+}
+
+export interface CreditCard {
+  id: string;
+  name: string;
+  balance: number;
+  limit: number;
+  utilization: number;
+}
+
+export interface AssetLiabilityPoint {
+  date: string;
+  assets: number;
+  liabilities: number;
+}
+
+export interface AccountBalanceHistory {
+  id: string;
+  name: string;
+  type: string;
+  snapshots: { date: string; balance: number }[];
+}
+
+export interface CategoryTrendSeries {
+  category: string;
+  data: { month: string; amount: number }[];
+}
+
+export interface ChannelTrend {
+  month: string;
+  online: number;
+  inStore: number;
+  other: number;
+}
