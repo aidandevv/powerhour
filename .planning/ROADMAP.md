@@ -12,7 +12,7 @@ This roadmap adds an AI conversational agent and PDF report generation to an exi
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Security Foundation + Agent Tools** - Establish security controls and build all read-only DB query tools the agent will use
+- [x] **Phase 1: Security Foundation + Agent Tools** - Establish security controls and build all read-only DB query tools the agent will use ✓ 2026-02-13
 - [ ] **Phase 2: ReAct Agent Core + Streaming Endpoint** - Build the agent executor and streaming API endpoint
 - [ ] **Phase 3: Chat Widget UI** - Integrate the chat interface into the dashboard
 - [ ] **Phase 4: PDF Report Generation** - Add AI-narrated PDF reports via dashboard button and chat command
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Foundation + Agent Tools | 0/2 | Not started | - |
+| 1. Security Foundation + Agent Tools | 2/2 | Complete ✓ | 2026-02-13 |
 | 2. ReAct Agent Core + Streaming Endpoint | 0/2 | Not started | - |
 | 3. Chat Widget UI | 0/2 | Not started | - |
 | 4. PDF Report Generation | 0/2 | Not started | - |
