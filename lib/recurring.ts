@@ -1,6 +1,7 @@
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { transactions, recurringItems, accounts } from "@/lib/db/schema";
+import { encryptField } from "@/lib/crypto-fields";
 
 interface TransactionGroup {
   merchantName: string;
@@ -142,8 +143,8 @@ export async function detectRecurringTransactions(accountId: string) {
     } else {
       await db.insert(recurringItems).values({
         accountId,
-        name: group.merchantName,
-        merchantName: group.merchantName,
+        name: encryptField(group.merchantName) ?? group.merchantName,
+        merchantName: encryptField(group.merchantName) ?? group.merchantName,
         amount: avgAmount.toFixed(2),
         frequency: freq.frequency,
         lastDate: lastDate.toISOString().split("T")[0],

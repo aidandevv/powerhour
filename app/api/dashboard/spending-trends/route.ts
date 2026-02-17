@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
+import { apiError } from "@/lib/api/error";
 
 export async function GET(req: NextRequest) {
   try {
-    const months = parseInt(req.nextUrl.searchParams.get("months") || "6", 10);
+    const months = Math.min(parseInt(req.nextUrl.searchParams.get("months") || "6", 10), 24);
 
     const fromDate = new Date();
     fromDate.setMonth(fromDate.getMonth() - months);
@@ -30,7 +31,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ trends });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch spending trends";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch spending trends");
   }
 }

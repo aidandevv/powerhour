@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
+import { apiError } from "@/lib/api/error";
 
 const updateSchema = z.object({
   category: z.string().optional(),
@@ -38,7 +39,6 @@ export async function PATCH(
 
     return NextResponse.json(updated);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to update transaction";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to update transaction");
   }
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, desc, and, gte, lte, ilike, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, ilike, sql, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { transactions, accounts, recurringItems } from "@/lib/db/schema";
+import { transactions, accounts, recurringItems, expenseGroupMembers, expenseGroups } from "@/lib/db/schema";
+import { apiError } from "@/lib/api/error";
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const search = searchParams.get("search");
+    const groupId = searchParams.get("group_id");
 
     const conditions = [];
 
@@ -34,6 +36,15 @@ export async function GET(req: NextRequest) {
           transactions.merchantName,
           `%${search}%`
         )})`
+      );
+    }
+
+    if (groupId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(groupId)) {
+      conditions.push(
+        sql`${transactions.id} IN (
+          SELECT transaction_id FROM expense_group_members
+          WHERE group_id = ${groupId}::uuid
+        )`
       );
     }
 
@@ -79,15 +90,41 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .offset(offset);
 
+    const transactionIds = result.map((r) => r.id);
+    const groupsByTxn: Record<string, { id: string; name: string }[]> = {};
+    if (transactionIds.length > 0) {
+      const memberships = await db
+        .select({
+          transactionId: expenseGroupMembers.transactionId,
+          groupId: expenseGroups.id,
+          groupName: expenseGroups.name,
+        })
+        .from(expenseGroupMembers)
+        .innerJoin(expenseGroups, eq(expenseGroupMembers.groupId, expenseGroups.id))
+        .where(inArray(expenseGroupMembers.transactionId, transactionIds));
+
+      for (const m of memberships) {
+        if (!groupsByTxn[m.transactionId]) groupsByTxn[m.transactionId] = [];
+        groupsByTxn[m.transactionId].push({
+          id: m.groupId,
+          name: m.groupName,
+        });
+      }
+    }
+
+    const data = result.map((r) => ({
+      ...r,
+      groups: groupsByTxn[r.id] ?? [],
+    }));
+
     return NextResponse.json({
-      data: result,
+      data,
       page,
       limit,
       total,
       totalPages: Math.ceil(total / limit),
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch transactions";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch transactions");
   }
 }

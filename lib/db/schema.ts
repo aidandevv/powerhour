@@ -8,14 +8,15 @@ import {
   date,
   index,
   unique,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const institutions = pgTable("institutions", {
   id: uuid("id").primaryKey().defaultRandom(),
   plaidItemId: text("plaid_item_id").notNull().unique(),
-  plaidAccessToken: text("plaid_access_token").notNull(), // AES-256-GCM encrypted
+  plaidAccessToken: text("plaid_access_token").notNull(), // encrypted at rest (AES-256-GCM)
   institutionName: text("institution_name").notNull(),
-  institutionId: text("institution_id").notNull(), // Plaid institution_id
+  institutionId: text("institution_id").notNull(),
   syncCursor: text("sync_cursor"),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
   status: text("status").notNull().default("active"), // active | error | relink_required
@@ -107,6 +108,101 @@ export const recurringItems = pgTable("recurring_items", {
   nextProjectedDate: date("next_projected_date"),
   isActive: boolean("is_active").notNull().default(true),
   isUserConfirmed: boolean("is_user_confirmed").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const budgetPlans = pgTable("budget_plans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  summaryText: text("summary_text"),
+  messagesJson: jsonb("messages_json").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const expenseGroups = pgTable("expense_groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description"),
+  budgetPlanId: uuid("budget_plan_id").references(() => budgetPlans.id, { onDelete: "set null" }),
+  dateFrom: date("date_from"),
+  dateTo: date("date_to"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const expenseGroupMembers = pgTable(
+  "expense_group_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => expenseGroups.id, { onDelete: "cascade" }),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    uniqueGroupTransaction: unique().on(table.groupId, table.transactionId),
+    groupIdIdx: index("idx_expense_group_members_group_id").on(table.groupId),
+    transactionIdIdx: index("idx_expense_group_members_transaction_id").on(table.transactionId),
+  })
+);
+
+export const savingsTargets = pgTable("savings_targets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  targetAmount: numeric("target_amount", { precision: 14, scale: 2 }).notNull(),
+  targetDate: date("target_date").notNull(),
+  monthlyAmount: numeric("monthly_amount", { precision: 14, scale: 2 }).notNull(),
+  budgetPlanId: uuid("budget_plan_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const userSettings = pgTable("user_settings", {
+  id: text("id").primaryKey().default("default"),
+  passwordHash: text("password_hash"),
+  syncScheduleEnabled: boolean("sync_schedule_enabled").notNull().default(true),
+  digestScheduleEnabled: boolean("digest_schedule_enabled").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    action: text("action").notNull(), // login | logout | password_change | institution_link | institution_delete | report_download
+    ip: text("ip"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    createdAtIdx: index("idx_audit_log_created_at").on(table.createdAt),
+    actionIdx: index("idx_audit_log_action").on(table.action),
+  })
+);
+
+export const digests = pgTable("digests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  periodFrom: date("period_from").notNull(),
+  periodTo: date("period_to").notNull(),
+  summaryMarkdown: text("summary_markdown").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const budgetGoals = pgTable("budget_goals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  category: text("category").notNull(),
+  categoryLabel: text("category_label").notNull(),
+  targetType: text("target_type").notNull(), // 'cap' | 'percent_reduction' | 'savings'
+  monthlyTarget: numeric("monthly_target", { precision: 14, scale: 2 }).notNull(),
+  baselineMonthlySpend: numeric("baseline_monthly_spend", { precision: 14, scale: 2 }).notNull(),
+  rationale: text("rationale").notNull(),
+  status: text("status").notNull().default("suggested"), // 'suggested' | 'accepted' | 'dismissed'
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

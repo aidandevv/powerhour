@@ -59,7 +59,7 @@ export function SpendingTrendChart() {
               />
               <Bar
                 dataKey="amount"
-                fill="hsl(222.2, 47.4%, 11.2%)"
+                fill="hsl(205, 59%, 25%)"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>

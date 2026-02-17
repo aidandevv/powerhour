@@ -1,12 +1,6 @@
 /**
- * TOOL-03: Transaction search by merchant name, keyword, or date range
- *
- * SEC-02: Drizzle .select() — generates SELECT only
- * SEC-03: Joins only accounts, never institutions table
- * SEC-06: transactionSearchSchema validates all inputs (Zod) before DB query
- *
- * NOTE: transactionSearchSchema is also used as inputSchema in the Phase 2
- * AI SDK tool() wrapper. Export it explicitly for reuse.
+ * Transaction search by merchant name, keyword, or date range.
+ * transactionSearchSchema is exported for reuse as the AI tool's inputSchema.
  */
 import { db } from "@/lib/db";
 import { transactions, accounts } from "@/lib/db/schema";
@@ -43,7 +37,7 @@ export interface TransactionSearchRow {
 export async function searchTransactions(
   params: TransactionSearchParams
 ): Promise<TransactionSearchRow[]> {
-  // Validate params with Zod (SEC-06: sanitize before query)
+  // Validate and sanitise input before building the query
   const validated = transactionSearchSchema.parse(params);
   const { query, from, to, limit } = validated;
 

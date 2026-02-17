@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { accounts, institutions } from "@/lib/db/schema";
+import { decryptField } from "@/lib/crypto-fields";
+import { apiError } from "@/lib/api/error";
 
 export async function GET(
   _req: NextRequest,
@@ -31,9 +33,12 @@ export async function GET(
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
-    return NextResponse.json(account);
+    return NextResponse.json({
+      ...account,
+      name: decryptField(account.name) ?? account.name,
+      officialName: decryptField(account.officialName),
+    });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch account";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch account");
   }
 }

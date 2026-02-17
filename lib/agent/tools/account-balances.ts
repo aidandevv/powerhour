@@ -1,11 +1,7 @@
 /**
- * TOOL-02: Account balances across all institutions
- *
- * SEC-02: Read-only — queries agentAccountsView (a PostgreSQL VIEW, which is
- *         inherently read-only — no INSERT/UPDATE/DELETE possible against a view
- *         without an INSTEAD OF trigger, which we have not defined)
- * SEC-03: agentAccountsView excludes plaid_access_token, sync_cursor, error_code
- *         from the institutions table. Safe to return in agent results.
+ * Account balances across all linked institutions.
+ * Queries agentAccountsView which excludes sensitive fields
+ * (access tokens, sync cursors, error codes).
  */
 import { db } from "@/lib/db";
 import { agentAccountsView } from "@/lib/db/views";
@@ -31,15 +27,15 @@ export interface AccountBalancesResult {
 }
 
 export async function getAccountBalances(): Promise<AccountBalancesResult> {
-  const rows = await db
-    .select()
-    .from(agentAccountsView)
-    .where(eq(agentAccountsView.isActive, true));
+  try {
+    const rows = await db
+      .select()
+      .from(agentAccountsView);
 
-  let totalAssets = 0;
-  let totalLiabilities = 0;
+    let totalAssets = 0;
+    let totalLiabilities = 0;
 
-  const accounts: AccountRow[] = rows.map((r) => {
+    const accounts: AccountRow[] = rows.map((r) => {
     const balance = parseFloat(String(r.currentBalance ?? "0"));
     // Credit and loan accounts: balance is what's owed (liability)
     if (r.type === "credit" || r.type === "loan") {
@@ -74,4 +70,12 @@ export async function getAccountBalances(): Promise<AccountBalancesResult> {
     totalLiabilities,
     netWorth: totalAssets - totalLiabilities,
   };
+  } catch (error) {
+    console.error("[account-balances] Error fetching balances:", error);
+    throw new Error(
+      `Failed to fetch account balances: ${error instanceof Error ? error.message : "Unknown error"}. ` +
+      `This might be because the database view 'agent_accounts_view' doesn't exist. ` +
+      `Run 'npm run db:migrate' to create it.`
+    );
+  }
 }

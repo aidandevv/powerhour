@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProjectionSummary } from "@/lib/projections";
+import { apiError } from "@/lib/api/error";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,7 +12,6 @@ export async function GET(req: NextRequest) {
     const summary = await getProjectionSummary(days);
     return NextResponse.json(summary);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch projections";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch projections");
   }
 }

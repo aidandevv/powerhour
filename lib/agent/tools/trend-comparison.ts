@@ -1,9 +1,4 @@
-/**
- * TOOL-04: Spending trend comparison across two time periods
- *
- * SEC-02: Drizzle .select() — SELECT only
- * SEC-03: Queries only transactions + accounts — no institutions
- */
+/** Spending trend comparison across two time periods. */
 import { db } from "@/lib/db";
 import { transactions, accounts } from "@/lib/db/schema";
 import { and, gte, lte, gt, sql, eq } from "drizzle-orm";

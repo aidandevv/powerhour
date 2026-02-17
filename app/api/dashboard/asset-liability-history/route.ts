@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { balanceSnapshots, accounts } from "@/lib/db/schema";
+import { apiError } from "@/lib/api/error";
 
 export async function GET(req: NextRequest) {
   try {
-    const days = parseInt(req.nextUrl.searchParams.get("days") || "365", 10);
+    const days = Math.min(parseInt(req.nextUrl.searchParams.get("days") || "365", 10), 730);
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - days);
     const fromDateStr = fromDate.toISOString().split("T")[0];
@@ -30,7 +31,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ history });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch asset/liability history";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch asset/liability history");
   }
 }

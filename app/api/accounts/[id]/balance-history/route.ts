@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq, desc, gte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { balanceSnapshots } from "@/lib/db/schema";
+import { apiError } from "@/lib/api/error";
 
 export async function GET(
   req: NextRequest,
@@ -9,7 +10,7 @@ export async function GET(
 ) {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const days = parseInt(searchParams.get("days") || "90", 10);
+    const days = Math.min(parseInt(searchParams.get("days") || "90", 10), 730);
 
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - days);
@@ -32,7 +33,6 @@ export async function GET(
 
     return NextResponse.json({ snapshots: filtered.reverse() });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch balance history";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch balance history");
   }
 }

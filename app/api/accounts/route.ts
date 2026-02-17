@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { accounts, institutions } from "@/lib/db/schema";
+import { decryptField } from "@/lib/crypto-fields";
+import { apiError } from "@/lib/api/error";
 
 export async function GET() {
   try {
@@ -41,12 +43,15 @@ export async function GET() {
           accounts: [],
         };
       }
-      grouped[key].accounts.push(row);
+      grouped[key].accounts.push({
+        ...row,
+        name: decryptField(row.name) ?? row.name,
+        officialName: decryptField(row.officialName),
+      });
     }
 
     return NextResponse.json({ institutions: Object.values(grouped) });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch accounts";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch accounts");
   }
 }

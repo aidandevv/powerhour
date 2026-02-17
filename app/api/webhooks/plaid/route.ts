@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPlaidWebhook, handleWebhook } from "@/lib/plaid/webhooks";
+import { apiError } from "@/lib/api/error";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,12 +23,11 @@ export async function POST(req: NextRequest) {
 
     // Process webhook asynchronously — respond immediately
     handleWebhook(webhookBody).catch((err) => {
-      console.error("Webhook processing error:", err);
+      console.error("Webhook processing error:", err instanceof Error ? err.message : "Unknown error");
     });
 
     return NextResponse.json({ received: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Webhook processing failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Webhook processing failed");
   }
 }

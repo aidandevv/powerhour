@@ -4,13 +4,16 @@ import { db } from "@/lib/db";
 import { institutions } from "@/lib/db/schema";
 import { decrypt } from "@/lib/crypto";
 import { plaidClient } from "@/lib/plaid/client";
+import { apiError } from "@/lib/api/error";
+import { logAuditEvent } from "@/lib/audit-log";
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params;
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
     const [institution] = await db
       .select()
@@ -31,10 +34,10 @@ export async function DELETE(
 
     // Delete institution (cascades to accounts + transactions)
     await db.delete(institutions).where(eq(institutions.id, id));
+    await logAuditEvent("institution_delete", ip, { institutionId: id, name: institution.institutionName });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to delete institution";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to delete institution");
   }
 }

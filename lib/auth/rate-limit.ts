@@ -6,6 +6,13 @@ const loginRateLimiter = new RateLimiterMemory({
   blockDuration: 15 * 60, // block for 15 minutes
 });
 
+export const syncRateLimiter = new RateLimiterMemory({
+  points: 3, // 3 syncs
+  duration: 15 * 60, // per 15 minutes
+  blockDuration: 15 * 60,
+});
+
+
 export async function checkLoginRateLimit(ip: string): Promise<{
   allowed: boolean;
   retryAfterSeconds?: number;

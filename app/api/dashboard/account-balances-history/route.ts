@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { gte, eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { balanceSnapshots, accounts } from "@/lib/db/schema";
+import { apiError } from "@/lib/api/error";
 
 export async function GET(req: NextRequest) {
   try {
@@ -52,7 +53,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ accounts: accountsWithData });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch account balance history";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch account balance history");
   }
 }

@@ -11,6 +11,7 @@ export interface TransactionFilters {
   from?: string;
   to?: string;
   search?: string;
+  groupId?: string;
 }
 
 export function useTransactions(filters: TransactionFilters = {}) {
@@ -22,6 +23,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (filters.search) params.set("search", filters.search);
+  if (filters.groupId) params.set("group_id", filters.groupId);
 
   const query = params.toString();
   return useSWR<PaginatedResponse<TransactionItem>>(

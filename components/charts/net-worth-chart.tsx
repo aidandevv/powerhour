@@ -78,7 +78,7 @@ export function NetWorthChart() {
               <Line
                 type="monotone"
                 dataKey="netWorth"
-                stroke="hsl(222.2, 47.4%, 11.2%)"
+                stroke="hsl(205, 59%, 25%)"
                 strokeWidth={2}
                 dot={false}
               />

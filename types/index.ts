@@ -42,6 +42,7 @@ export interface TransactionItem {
   pending: boolean;
   paymentChannel: string | null;
   isRecurring: boolean;
+  groups?: { id: string; name: string }[];
 }
 
 export interface RecurringItem {

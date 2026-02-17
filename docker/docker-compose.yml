@@ -21,8 +21,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-finance}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Port not exposed externally — access via internal Docker network only
     networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-finance_app}"]

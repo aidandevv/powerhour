@@ -12,12 +12,12 @@ import { useCategoryTrends } from "@/hooks/use-dashboard";
 import { formatCategory } from "@/lib/utils";
 
 const SPARKLINE_COLORS = [
-  "hsl(222.2, 47.4%, 30%)",
-  "hsl(142, 72%, 29%)",
-  "hsl(204, 80%, 40%)",
-  "hsl(38, 92%, 40%)",
-  "hsl(291, 64%, 42%)",
-  "hsl(0, 72%, 45%)",
+  "hsl(205, 59%, 25%)",
+  "hsl(205, 45%, 38%)",
+  "hsl(205, 35%, 48%)",
+  "hsl(210, 25%, 55%)",
+  "hsl(210, 17%, 65%)",
+  "hsl(210, 17%, 70%)",
 ];
 
 function fmtMonth(ym: string) {

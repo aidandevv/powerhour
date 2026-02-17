@@ -65,7 +65,7 @@ export function TopMerchantsChart() {
                 {merchants.map((_, i) => (
                   <Cell
                     key={i}
-                    fill={`hsl(222.2, 47.4%, ${Math.max(15, 50 - i * 3)}%)`}
+                    fill={`hsl(205, 59%, ${Math.max(22, 45 - i * 3)}%)`}
                   />
                 ))}
               </Bar>

@@ -13,16 +13,16 @@ import { useSpendingSummary } from "@/hooks/use-dashboard";
 import { formatCategory } from "@/lib/utils";
 
 const COLORS = [
-  "#1e293b",
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-  "#84cc16",
-  "#f97316",
+  "#1a4766",
+  "#2d5a7b",
+  "#4a7a95",
+  "#6b92aa",
+  "#8ba9be",
+  "#a5b5c2",
+  "#7a9aad",
+  "#5a7d92",
+  "#3d6074",
+  "#2a4d63",
 ];
 
 export function SpendingByCategoryChart() {

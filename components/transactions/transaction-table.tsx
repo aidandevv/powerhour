@@ -14,9 +14,15 @@ import type { TransactionItem } from "@/types";
 
 interface TransactionTableProps {
   transactions: TransactionItem[];
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
-export function TransactionTable({ transactions }: TransactionTableProps) {
+export function TransactionTable({
+  transactions,
+  selectedIds = new Set(),
+  onSelectionChange,
+}: TransactionTableProps) {
   if (transactions.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -25,13 +31,46 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
     );
   }
 
+  function toggleSelect(id: string) {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onSelectionChange(next);
+  }
+
+  function toggleSelectAll() {
+    if (!onSelectionChange) return;
+    if (selectedIds.size === transactions.length) {
+      onSelectionChange(new Set());
+    } else {
+      onSelectionChange(new Set(transactions.map((t) => t.id)));
+    }
+  }
+
+  const showSelection = !!onSelectionChange;
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
+          {showSelection && (
+            <TableHead className="w-10">
+              <input
+                type="checkbox"
+                checked={
+                  transactions.length > 0 &&
+                  selectedIds.size === transactions.length
+                }
+                onChange={toggleSelectAll}
+                className="cursor-pointer"
+              />
+            </TableHead>
+          )}
           <TableHead>Date</TableHead>
           <TableHead>Description</TableHead>
           <TableHead>Category</TableHead>
+          <TableHead>Group</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Amount</TableHead>
         </TableRow>
@@ -39,6 +78,16 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
       <TableBody>
         {transactions.map((txn) => (
           <TableRow key={txn.id}>
+            {showSelection && (
+              <TableCell>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(txn.id)}
+                  onChange={() => toggleSelect(txn.id)}
+                  className="cursor-pointer"
+                />
+              </TableCell>
+            )}
             <TableCell className="whitespace-nowrap">
               {formatDate(txn.date)}
             </TableCell>
@@ -53,6 +102,19 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
             <TableCell>
               {txn.category && (
                 <Badge variant="secondary">{formatCategory(txn.category)}</Badge>
+              )}
+            </TableCell>
+            <TableCell>
+              {txn.groups && txn.groups.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {txn.groups.map((g) => (
+                    <Badge key={g.id} variant="outline" className="text-xs">
+                      {g.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-muted-foreground text-xs">—</span>
               )}
             </TableCell>
             <TableCell>

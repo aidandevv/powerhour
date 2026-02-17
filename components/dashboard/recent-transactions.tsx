@@ -11,7 +11,7 @@ export function RecentTransactions() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Transactions</CardTitle>
+        <CardTitle className="text-muted-foreground">Recent Transactions</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (

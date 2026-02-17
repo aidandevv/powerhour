@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { recurringItems } from "@/lib/db/schema";
+import { decryptField } from "@/lib/crypto-fields";
+import { apiError } from "@/lib/api/error";
 
 export async function GET() {
   try {
     const items = await db.select().from(recurringItems);
-    return NextResponse.json({ items });
+    const decrypted = items.map((item) => ({
+      ...item,
+      name: decryptField(item.name) ?? item.name,
+      merchantName: decryptField(item.merchantName),
+    }));
+    return NextResponse.json({ items: decrypted });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch recurring items";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch recurring items");
   }
 }

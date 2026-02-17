@@ -1,13 +1,15 @@
 import { CountryCode, Products } from "plaid";
+import { eq } from "drizzle-orm";
 import { plaidClient } from "./client";
 import { db } from "@/lib/db";
 import { institutions, accounts } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto";
+import { encryptField } from "@/lib/crypto-fields";
 
 export async function createLinkToken() {
   const response = await plaidClient.linkTokenCreate({
     user: { client_user_id: "single-user" },
-    client_name: "Finance Dashboard",
+    client_name: "powerhour",
     products: [
       Products.Transactions,
       Products.Investments,
@@ -24,7 +26,7 @@ export async function createLinkToken() {
 export async function createRelinkToken(accessToken: string) {
   const response = await plaidClient.linkTokenCreate({
     user: { client_user_id: "single-user" },
-    client_name: "Finance Dashboard",
+    client_name: "powerhour",
     country_codes: [CountryCode.Us],
     language: "en",
     access_token: accessToken,
@@ -79,8 +81,8 @@ export async function exchangePublicToken(publicToken: string) {
     await db.insert(accounts).values({
       institutionId: institution.id,
       plaidAccountId: acct.account_id,
-      name: acct.name,
-      officialName: acct.official_name || null,
+      name: encryptField(acct.name) ?? acct.name,
+      officialName: encryptField(acct.official_name || null),
       type: acct.type,
       subtype: acct.subtype || null,
       currencyCode: acct.balances.iso_currency_code || "USD",
@@ -91,4 +93,31 @@ export async function exchangePublicToken(publicToken: string) {
   }
 
   return institution;
+}
+
+/** Update an existing institution with a new access token (after relink) */
+export async function updateInstitutionAccessToken(
+  institutionId: string,
+  publicToken: string
+) {
+  const response = await plaidClient.itemPublicTokenExchange({
+    public_token: publicToken,
+  });
+
+  const { access_token } = response.data;
+  const encryptedToken = encrypt(access_token);
+
+  const [updated] = await db
+    .update(institutions)
+    .set({
+      plaidAccessToken: encryptedToken,
+      status: "active",
+      errorCode: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(institutions.id, institutionId))
+    .returning();
+
+  if (!updated) throw new Error("Institution not found");
+  return updated;
 }

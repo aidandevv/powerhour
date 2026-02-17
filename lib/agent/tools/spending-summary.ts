@@ -1,10 +1,4 @@
-/**
- * TOOL-01: Spending summary by category for a date range
- *
- * SEC-02: Read-only — uses Drizzle .select() which generates SELECT SQL only
- * SEC-03: Does not touch institutions table — no plaid_access_token exposure
- * SEC-06: Input validated by TypeScript types (AI SDK will add Zod in Phase 2)
- */
+/** Spending summary by category for a given date range. */
 import { db } from "@/lib/db";
 import { transactions, accounts } from "@/lib/db/schema";
 import { and, gte, lte, gt, sql, eq } from "drizzle-orm";

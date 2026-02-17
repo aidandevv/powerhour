@@ -1,9 +1,4 @@
-/**
- * TOOL-05: Recurring expenses listing
- *
- * SEC-02: Drizzle .select() — SELECT only
- * SEC-03: Joins recurringItems + accounts only — never institutions table
- */
+/** Recurring expenses listing with normalised monthly totals. */
 import { db } from "@/lib/db";
 import { recurringItems, accounts } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";

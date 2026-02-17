@@ -101,7 +101,7 @@ export function CashFlowProjectionChart() {
                 />
                 <Bar
                   dataKey="amount"
-                  fill="hsl(222.2, 47.4%, 30%)"
+                  fill="hsl(205, 59%, 25%)"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>

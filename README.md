@@ -1,169 +1,221 @@
-# Personal Finance Dashboard
+# powerhour
 
-A self-hosted, single-user personal finance dashboard that aggregates spending, balances, and investment data across all financial institutions via the Plaid API.
+A self-hosted personal finance dashboard with AI-powered insights, built with Next.js, Plaid, and Gemini.
 
-**This project is not affiliated with Plaid. Each deployer is responsible for their own Plaid API credentials and must comply with Plaid's terms of service.**
+Aggregates spending, balances, and recurring expenses across all your financial institutions into a single dashboard — then layers on two AI agents that can answer questions about your money, generate PDF reports, plan travel budgets, and help you cut spending.
 
-## Features
+> **Not affiliated with Plaid.** Each deployer is responsible for their own Plaid API credentials and must comply with Plaid's terms of service.
 
-- Unified view of all accounts: checking, savings, credit cards, investments, and loans
-- Real-time balance tracking and net worth over time
-- Transaction search with category filtering
-- Automated recurring expense detection and 30/60/90-day projections
-- Daily balance snapshots for historical charting
-- Plaid webhook support for real-time transaction updates
-- Single-user authentication with rate limiting
-- AES-256-GCM encryption for all sensitive data at rest
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="800" />
+</p>
 
-## Prerequisites
+---
 
-- **Node.js 22+**
-- **Docker** and **Docker Compose**
-- **A Plaid developer account** — sign up at [dashboard.plaid.com](https://dashboard.plaid.com)
+## What it does
 
-## Plaid Setup
+**Dashboard** — Net worth tracking, spending trends by category, credit utilization, account balances, and KPI cards. All charts update daily via automated Plaid sync.
 
-1. Create a Plaid developer account at [dashboard.plaid.com](https://dashboard.plaid.com)
-2. Navigate to **Developers > Keys** and copy your `client_id` and `secret`
-3. Under **Developers > API**, configure your allowed redirect URIs to include your domain
-4. For development, use the `development` environment. For production with real bank data, apply for production access
+**Ticker AI chat** — A conversational agent embedded in the dashboard. Ask things like *"How much did I spend on dining last month?"*, *"Audit my subscriptions"*, or *"Generate a report for January"*. Ticker calls 15 tools to query your real transaction data and streams answers back in real time.
 
-## Local Development Setup
+<details>
+<summary>Screenshots</summary>
 
-1. **Clone and install dependencies:**
-   ```bash
-   git clone <your-repo-url>
-   cd financial-project
-   npm install
-   ```
+| Ticker AI Chat | Budget Planner | Transactions |
+|---|---|---|
+| ![Ticker](docs/screenshots/ticker-chat.png) | ![Planner](docs/screenshots/budget-planner.png) | ![Transactions](docs/screenshots/transactions.png) |
 
-2. **Create your environment file:**
-   ```bash
-   cp .env.example .env
-   ```
+| Subscriptions | Budgets | PDF Report |
+|---|---|---|
+| ![Subscriptions](docs/screenshots/subscriptions.png) | ![Budgets](docs/screenshots/budgets.png) | ![Report](docs/screenshots/pdf-report.png) |
 
-3. **Generate required secrets:**
-   ```bash
-   # Encryption key (32 bytes, hex-encoded)
-   openssl rand -hex 32
+</details>
 
-   # Session secret (64 bytes, hex-encoded)
-   openssl rand -hex 64
+**Budget Planner** — A separate AI agent with three modes:
+- **Travel budgets** — Researches real costs via Google search grounding, then builds a detailed budget table with low/mid/high estimates
+- **Savings goals** — *"Have $5k saved by May"* → calculates monthly savings needed, checks feasibility against your recurring expenses, and tracks progress on the dashboard
+- **Cut spending** — Analyses your top spending categories and suggests actionable budget caps based on your actual data
 
-   # Password hash (replace YOUR_PASSWORD)
-   node -e "const b=require('bcryptjs');b.hash('YOUR_PASSWORD',12).then(h=>console.log(h))"
-   ```
+**PDF reports** — On-demand financial reports generated entirely in-memory with custom PDFKit charts. Nine sections including an AI-written narrative summary, spending breakdowns, net worth history, and anomaly highlights.
 
-4. **Fill in `.env`** with your Plaid credentials, database URL, and generated secrets.
+**Subscriptions audit** — Flags recurring charges with no activity in 90+ days and calculates potential monthly savings if cancelled.
 
-5. **Start PostgreSQL with Docker:**
-   ```bash
-   docker compose -f docker/docker-compose.yml up db -d
-   ```
+**Smart Budget Goals** — AI-generated spending caps per category with progress tracking. Based on 3-month spending history and month-over-month trends.
 
-6. **Push the database schema:**
-   ```bash
-   npm run db:push
-   ```
+---
 
-7. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
+## Tech stack
 
-8. Open [http://localhost:3000](http://localhost:3000) and log in with your password.
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 14 (App Router, Server Components) |
+| Language | TypeScript (strict mode) |
+| Database | PostgreSQL 16 via Drizzle ORM |
+| AI | Gemini 2.5 Flash Lite via Vercel AI SDK v6 |
+| Auth | iron-session (encrypted httpOnly cookies, 8-hour expiry) |
+| Financial data | Plaid API (transactions, balances, recurring detection, webhooks) |
+| Styling | Tailwind CSS + shadcn/ui |
+| PDF | PDFKit (in-memory rendering, custom chart primitives) |
+| Deployment | Docker Compose, nginx reverse proxy, Let's Encrypt TLS |
 
-## Production Deployment (Hetzner VPS)
+---
 
-### 1. Provision a VPS
+## Pages
 
-- Create a Hetzner CAX11 (2 vCPU ARM, 4GB RAM) or equivalent
-- Install Docker and Docker Compose
-- Point your domain's DNS A record to the VPS IP
+| Route | Description |
+|---|---|
+| `/` | Dashboard — net worth, KPI cards, budget goals, savings targets, account overview, embedded Ticker chat |
+| `/transactions` | Searchable transaction list with filters, pagination, and expense group management |
+| `/accounts` | Institution-grouped accounts with per-account balance history charts |
+| `/projections` | Expense calendar, recurring item management, and savings goal projection charts |
+| `/subscriptions` | Subscription audit — flags inactive items, shows cost at risk |
+| `/budgets` | AI-generated smart budget goals with per-category progress bars |
+| `/budget-planner` | Two-pane AI chat for travel budgets, savings goals, and spending analysis |
+| `/settings` | Theme, scheduled job toggles, password management, Plaid institutions, security log |
 
-### 2. Install Docker
+---
+
+## Security
+
+- **Encryption at rest** — Plaid access tokens encrypted with AES-256-GCM (random IV per encryption, separate auth tag)
+- **Database-layer isolation** — AI agent tools query PostgreSQL views that structurally exclude sensitive columns. Even a compromised prompt cannot access tokens.
+- **Layered rate limiting** — nginx (login), application middleware (all API routes), and per-endpoint limits (chat, report, budget planner)
+- **Webhook verification** — Full JWK-based JWT signature + SHA-256 body hash verification for Plaid webhooks
+- **Audit log** — Records logins, password changes, institution links/deletes, and report downloads with IP and metadata
+- **HTTP headers** — HSTS, CSP with Plaid allowlist, X-Frame-Options DENY, strict referrer policy
+
+---
+
+## Quick start
+
+### Prerequisites
+
+- Node.js 22+
+- Docker and Docker Compose
+- A [Plaid developer account](https://dashboard.plaid.com)
+- A [Google AI Studio API key](https://aistudio.google.com/app/apikey) (for Gemini)
+
+### Setup
 
 ```bash
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
+git clone https://github.com/your-username/powerhour.git
+cd powerhour
+npm install
+
+# Generate secrets and configure environment
+npm run setup
+
+# Fill in Plaid credentials, database URL, and Gemini API key
+nano .env
+
+# Start PostgreSQL
+docker compose -f docker/docker-compose.yml up db -d
+
+# Push database schema
+npm run db:push
+
+# Start development server
+npm run dev
 ```
 
-### 3. Set up TLS with Let's Encrypt
+Open [http://localhost:3000](http://localhost:3000) and log in with your password.
+
+### Demo mode
+
+To run without Plaid credentials, set `DEMO_MODE=true` and `NEXT_PUBLIC_DEMO_MODE=true` in `.env`. The app seeds realistic fake data on startup — two institutions, four accounts, 6 months of transactions, recurring items, budget goals, and savings targets.
+
+---
+
+## Production deployment
+
+### Docker Compose
+
+```bash
+# On your server
+git clone https://github.com/your-username/powerhour.git /opt/powerhour
+cd /opt/powerhour
+cp .env.example .env && nano .env
+
+# Build and start all services (app, db, nginx)
+docker compose -f docker/docker-compose.yml up -d --build
+
+# Push schema
+docker compose -f docker/docker-compose.yml exec app npx drizzle-kit push
+```
+
+### TLS
 
 ```bash
 sudo apt install certbot
 sudo certbot certonly --standalone -d finance.yourdomain.com
 ```
 
-Update the `nginx.conf` SSL certificate paths to match your domain:
-```
-ssl_certificate /etc/letsencrypt/live/finance.yourdomain.com/fullchain.pem;
-ssl_certificate_key /etc/letsencrypt/live/finance.yourdomain.com/privkey.pem;
-```
-
-Set up auto-renewal:
-```bash
-echo "0 3 * * * certbot renew --quiet --deploy-hook 'docker compose -f /path/to/docker/docker-compose.yml restart nginx'" | sudo crontab -
-```
-
-### 4. Deploy
+Update `nginx.conf` with your certificate paths. Auto-renewal:
 
 ```bash
-# Clone to your server
-git clone <your-repo-url> /opt/finance-dashboard
-cd /opt/finance-dashboard
-
-# Create and fill .env
-cp .env.example .env
-nano .env  # Fill in all values
-
-# Build and start
-docker compose -f docker/docker-compose.yml up -d --build
-
-# Push database schema
-docker compose -f docker/docker-compose.yml exec app npx drizzle-kit push
+echo "0 3 * * * certbot renew --quiet --deploy-hook 'docker compose -f /opt/powerhour/docker/docker-compose.yml restart nginx'" | sudo crontab -
 ```
 
-### 5. DNS Configuration
-
-Set an A record for your domain pointing to your VPS IP address. The nginx config handles HTTP-to-HTTPS redirect and all security headers.
-
-## Database Backup
-
-Automated daily backup using `pg_dump` with GPG encryption:
+### Database backups
 
 ```bash
-#!/bin/bash
-# backup.sh — run via cron: 0 2 * * * /opt/finance-dashboard/backup.sh
-
-BACKUP_DIR="/opt/finance-dashboard/backups"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-mkdir -p "$BACKUP_DIR"
-
-# Dump database
-docker compose -f /opt/finance-dashboard/docker/docker-compose.yml exec -T db \
+# Daily encrypted backup via cron
+docker compose -f /opt/powerhour/docker/docker-compose.yml exec -T db \
   pg_dump -U finance_app finance | \
-  gpg --symmetric --batch --passphrase-file /opt/finance-dashboard/.backup-passphrase \
-  > "$BACKUP_DIR/finance_$TIMESTAMP.sql.gpg"
+  gpg --symmetric --batch --passphrase-file /opt/powerhour/.backup-passphrase \
+  > /opt/powerhour/backups/finance_$(date +%Y%m%d).sql.gpg
 
-# Keep only last 30 days
-find "$BACKUP_DIR" -name "*.sql.gpg" -mtime +30 -delete
-```
-
-To restore from backup:
-```bash
+# Restore
 gpg --decrypt backup_file.sql.gpg | docker compose exec -T db psql -U finance_app finance
 ```
 
-## Tech Stack
+---
 
-- **Frontend:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui, Recharts
-- **Backend:** Next.js API Routes, Drizzle ORM, PostgreSQL
-- **Auth:** iron-session, bcrypt, rate-limiter-flexible
-- **Data:** Plaid API (Transactions, Balance, Investments, Liabilities)
-- **Deployment:** Docker Compose, nginx, Let's Encrypt
+## Architecture
+
+### AI agents
+
+**Ticker** (`lib/agent/agent.ts`) — ReAct agent with 15 tools, 8-step iteration cap, 30-second timeout. Tools query spending summaries, account balances, transactions, recurring expenses, cash flow forecasts, anomalies, debt payoff timelines, and more. Streams responses via SSE.
+
+**Budget Planner** (`lib/agent/budget-planner-agent.ts`) — 16-step cap, 120-second timeout. Supports web search via Google Grounding. Three intent-detected modes with distinct tool sets and conversation flows.
+
+### Plaid integration
+
+- **Link flow** — Plaid Link widget → link token → access token exchange (encrypted immediately)
+- **Sync** — Cursor-based pagination via Plaid Transactions Sync API with transaction upserts and balance snapshots
+- **Webhooks** — Signature-verified handlers for sync updates and item error events
+- **Recurring detection** — Frequency analysis (weekly/biweekly/monthly/annually) populates the recurring items table
+
+### Scheduler
+
+In-process cron started via Next.js `instrumentation.ts`. Daily Plaid sync at 06:00, weekly AI digest on Mondays at 08:00. Both jobs respect database toggles — changes in Settings take effect on the next tick without a restart.
+
+---
+
+## Database
+
+16 tables and 2 security views. Key tables:
+
+| Table | Purpose |
+|---|---|
+| `institutions` | Plaid-linked banks with encrypted access tokens and sync state |
+| `accounts` | Individual accounts with balances and credit limits |
+| `transactions` | All transactions with category, merchant, payment channel |
+| `balance_snapshots` | Daily per-account snapshots for historical charts |
+| `recurring_items` | Detected recurring expenses with frequency and projected dates |
+| `budget_plans` | Budget planner sessions with full message history (JSONB) |
+| `savings_targets` | Goals with target amount, date, and monthly savings rate |
+| `budget_goals` | AI-generated spending caps per category |
+| `audit_log` | Immutable event log with IP and metadata |
+
+Migrations managed with Drizzle Kit (`npm run db:push` for development, manual migrations for production).
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.
 
 ## License
 
 ISC
-# powerhour-testing

@@ -4,6 +4,22 @@ import { SessionData } from "@/lib/auth/session";
 
 const publicPaths = ["/login", "/api/auth/login", "/api/webhooks/plaid"];
 
+// Simple in-memory rate limiter for Edge Runtime (no external deps)
+const dataRateMap = new Map<string, { count: number; resetAt: number }>();
+const DATA_RATE_LIMIT = 120; // requests per window
+const DATA_RATE_WINDOW = 60_000; // 1 minute in ms
+
+function checkDataRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = dataRateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    dataRateMap.set(ip, { count: 1, resetAt: now + DATA_RATE_WINDOW });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= DATA_RATE_LIMIT;
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -16,7 +32,7 @@ export async function middleware(req: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    pathname.includes(".")
+    /\.[a-zA-Z0-9]{2,5}$/.test(pathname)
   ) {
     return NextResponse.next();
   }
@@ -46,6 +62,17 @@ export async function middleware(req: NextRequest) {
         return NextResponse.json({ error: "Session expired" }, { status: 401 });
       }
       return NextResponse.redirect(new URL("/login", req.url));
+    }
+  }
+
+  // Rate limit authenticated API requests (except auth and webhooks)
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/") && !pathname.startsWith("/api/webhooks/")) {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!checkDataRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429 }
+      );
     }
   }
 

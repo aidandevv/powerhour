@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { institutions } from "@/lib/db/schema";
+import { apiError } from "@/lib/api/error";
 
 export async function GET() {
   try {
@@ -18,7 +19,6 @@ export async function GET() {
 
     return NextResponse.json({ institutions: result });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch institutions";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch institutions");
   }
 }

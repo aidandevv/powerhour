@@ -57,8 +57,8 @@ export function PaymentChannelChart() {
                   value === "online" ? "Online" : value === "inStore" ? "In Store" : "Other"
                 }
               />
-              <Bar dataKey="online" stackId="a" fill="hsl(222.2, 47.4%, 30%)" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="inStore" stackId="a" fill="hsl(142, 72%, 29%)" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="online" stackId="a" fill="hsl(205, 59%, 25%)" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="inStore" stackId="a" fill="hsl(205, 45%, 40%)" radius={[0, 0, 0, 0]} />
               <Bar dataKey="other" stackId="a" fill="hsl(38, 92%, 40%)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

@@ -1,17 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProjectionCalendar } from "@/components/dashboard/projection-calendar";
+import { SavingsProjectionChart } from "@/components/charts/savings-projection-chart";
 import { formatCurrency } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProjectedExpense } from "@/types";
-import { Check, X } from "lucide-react";
+import { Check, X, Target, MapPin } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+interface SavingsTarget {
+  id: string;
+  name: string;
+  targetAmount: string;
+  targetDate: string;
+  monthlyAmount: string;
+  createdAt: string;
+}
 
 interface RecurringItemData {
   id: string;
@@ -32,6 +44,16 @@ interface ProjectionData {
 }
 
 export default function ProjectionsPage() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<string>(() =>
+    tabParam === "savings" ? "savings" : "calendar"
+  );
+
+  useEffect(() => {
+    if (tabParam === "savings") setActiveTab("savings");
+  }, [tabParam]);
+
   const [days, setDays] = useState(90);
   const { data: projData } = useSWR<ProjectionData>(
     `/api/projections?days=${days}`,
@@ -40,6 +62,14 @@ export default function ProjectionsPage() {
   const { data: recurringData, mutate: mutateRecurring } = useSWR<{
     items: RecurringItemData[];
   }>("/api/recurring", fetcher);
+  const { data: savingsTargets } = useSWR<SavingsTarget[]>(
+    "/api/savings-targets",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      refreshInterval: 10000, // Poll every 10 seconds to catch new targets from Budget Planner
+    }
+  );
 
   async function handleConfirm(id: string, confirmed: boolean) {
     await fetch(`/api/recurring/${id}`, {
@@ -136,10 +166,11 @@ export default function ProjectionsPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="calendar">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="calendar">Expense Calendar</TabsTrigger>
           <TabsTrigger value="recurring">Recurring Items</TabsTrigger>
+          <TabsTrigger value="savings">Savings Goals</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="mt-4">
@@ -217,6 +248,59 @@ export default function ProjectionsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="savings" className="mt-4">
+          <div className="space-y-6">
+            {!savingsTargets?.length ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Target className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                  <p className="text-muted-foreground mb-1">
+                    No savings goals yet.
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create one from a budget plan in the Budget Planner.
+                  </p>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/budget-planner" className="gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Go to Budget Planner
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2">
+                {savingsTargets.map((t) => {
+                  const targetAmount = parseFloat(t.targetAmount);
+                  const monthlyAmount = parseFloat(t.monthlyAmount);
+                  return (
+                    <Card key={t.id}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">{t.name}</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {formatCurrency(targetAmount)} by{" "}
+                          {new Date(t.targetDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            year: "numeric",
+                          })}{" "}
+                          · {formatCurrency(monthlyAmount)}/mo
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <SavingsProjectionChart
+                          name={t.name}
+                          targetAmount={targetAmount}
+                          monthlyAmount={monthlyAmount}
+                        />
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -1,14 +1,8 @@
-/**
- * Streaming chat API endpoint for the AI agent
- *
- * SEC-01: Protected by auth middleware (middleware.ts returns 401 for unauthenticated /api/* requests)
- * AGNT-02: Streams tokens via toUIMessageStreamResponse()
- *
- * Uses Node.js runtime (not Edge) for DB access via Drizzle.
- */
+/** Streaming chat endpoint for the Ticker AI agent. */
 import { type UIMessage } from "ai";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import { runAgent } from "@/lib/agent/agent";
+import { apiError } from "@/lib/api/error";
 
 export const runtime = "nodejs";
 
@@ -49,14 +43,7 @@ export async function POST(req: Request) {
 
     return result.toUIMessageStreamResponse();
   } catch (error: unknown) {
-    console.error("[ai/chat] Error:", error);
-
-    const message =
-      error instanceof Error ? error.message : "Something went wrong";
-
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("[ai/chat] Error:", error instanceof Error ? error.message : "Unknown error");
+    return apiError(error, "Something went wrong");
   }
 }

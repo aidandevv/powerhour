@@ -2,28 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PP Kyoto — headings */
+@font-face {
+  font-family: "PP Kyoto";
+  font-weight: 300;
+  font-style: normal;
+  src: url("/fonts/pp-kyoto/PPKyoto-Light.otf") format("opentype");
+}
+@font-face {
+  font-family: "PP Kyoto";
+  font-weight: 500;
+  font-style: normal;
+  src: url("/fonts/pp-kyoto/PPKyoto-Medium.otf") format("opentype");
+}
+@font-face {
+  font-family: "PP Kyoto";
+  font-weight: 800;
+  font-style: normal;
+  src: url("/fonts/pp-kyoto/PPKyoto-Extrabold.otf") format("opentype");
+}
+
+/* PP Mori — body text */
+@font-face {
+  font-family: "PP Mori";
+  font-weight: 400;
+  font-style: normal;
+  src: url("/fonts/pp-mori/PPMori-Regular.otf") format("opentype");
+}
+@font-face {
+  font-family: "PP Mori";
+  font-weight: 600;
+  font-style: normal;
+  src: url("/fonts/pp-mori/PPMori-Semibold.otf") format("opentype");
+}
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --font-sans: "PP Mori", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "PP Kyoto", ui-sans-serif, system-ui, sans-serif;
+    /* powerhour palette: Primary #1a4766, Tertiary #a5b5c2, Background #ebeef0 */
+    --background: 210 15% 94%;
+    --foreground: 205 45% 18%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 205 45% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --popover-foreground: 205 45% 18%;
+    --primary: 205 59% 25%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 205 35% 35%;
+    --secondary-foreground: 0 0% 100%;
+    --tertiary: 210 17% 70%;
+    --tertiary-foreground: 205 45% 18%;
+    --muted: 210 15% 92%;
+    --muted-foreground: 210 17% 50%;
+    --accent: 210 17% 88%;
+    --accent-foreground: 205 45% 18%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 17% 85%;
+    --input: 210 17% 85%;
+    --ring: 205 59% 25%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 210 25% 10%;
+    --foreground: 210 15% 95%;
+    --card: 210 25% 13%;
+    --card-foreground: 210 15% 95%;
+    --popover: 210 25% 13%;
+    --popover-foreground: 210 15% 95%;
+    --primary: 205 50% 55%;
+    --primary-foreground: 210 25% 10%;
+    --secondary: 205 35% 25%;
+    --secondary-foreground: 0 0% 100%;
+    --tertiary: 210 17% 45%;
+    --tertiary-foreground: 210 15% 95%;
+    --muted: 210 20% 18%;
+    --muted-foreground: 210 15% 65%;
+    --accent: 210 20% 22%;
+    --accent-foreground: 210 15% 95%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 22%;
+    --input: 210 20% 22%;
+    --ring: 205 50% 55%;
   }
 }
 
@@ -32,6 +95,56 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    line-height: 1.6;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
   }
 }
+
+/* Chat markdown — assistant message formatting */
+.chat-markdown p { margin: 0.25em 0; }
+.chat-markdown p:first-child { margin-top: 0; }
+.chat-markdown p:last-child { margin-bottom: 0; }
+.chat-markdown ul { margin: 0.5em 0; padding-left: 1.25rem; list-style-type: disc; }
+.chat-markdown ol { margin: 0.5em 0; padding-left: 1.25rem; list-style-type: decimal; }
+.chat-markdown li { margin: 0.125em 0; }
+.chat-markdown pre { margin: 0.5em 0; overflow-x: auto; border-radius: 0.25rem; background: hsl(var(--muted)); padding: 0.5rem 0.75rem; font-size: 0.75rem; }
+.chat-markdown code { border-radius: 0.25rem; background: hsl(var(--muted)); padding: 0.125rem 0.25rem; font-size: 0.8125em; }
+.chat-markdown pre code { background: transparent; padding: 0; }
+.chat-markdown strong { font-weight: 600; }
+.chat-markdown h1, .chat-markdown h2, .chat-markdown h3 { font-weight: 600; margin: 0.75em 0 0.25em; font-size: inherit; }
+.chat-markdown h1:first-child, .chat-markdown h2:first-child, .chat-markdown h3:first-child { margin-top: 0; }
+.chat-markdown table { width: 100%; font-size: 0.8125rem; border-collapse: collapse; margin: 0.5em 0; }
+.chat-markdown th, .chat-markdown td { border: 1px solid hsl(var(--border)); padding: 0.25rem 0.5rem; text-align: left; }
+.chat-markdown th { background: hsl(var(--muted)); font-weight: 500; }
+
+/* Budget planner research stage */
+.chat-markdown.research-stage {
+  padding: 0.5rem 0;
+}
+.chat-markdown.research-stage > *:first-child { margin-top: 0; }
+.chat-markdown.research-stage ul {
+  margin: 0.5em 0;
+  padding-left: 1.25rem;
+  list-style: none;
+}
+.chat-markdown.research-stage ul li {
+  position: relative;
+  padding-left: 1.25rem;
+  margin: 0.5em 0;
+}
+.chat-markdown.research-stage ul li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  opacity: 0.8;
+}
+.chat-markdown.research-stage strong { color: hsl(var(--primary)); }

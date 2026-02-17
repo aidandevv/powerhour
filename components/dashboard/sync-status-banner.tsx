@@ -40,7 +40,7 @@ export function SyncStatusBanner() {
   }
 
   return (
-    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 mb-6">
+    <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-5 mb-6">
       <div className="flex items-start gap-3">
         <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
         <div className="flex-1">

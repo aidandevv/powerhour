@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq, and, gte, lte, gt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { accounts, institutions, transactions } from "@/lib/db/schema";
+import { apiError } from "@/lib/api/error";
 
 export async function GET() {
   try {
@@ -75,7 +76,6 @@ export async function GET() {
       })),
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch dashboard summary";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to fetch dashboard summary");
   }
 }

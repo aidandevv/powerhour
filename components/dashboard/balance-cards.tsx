@@ -17,7 +17,7 @@ export function BalanceCards() {
               <CardTitle className="text-sm font-medium">Loading...</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">--</div>
+              <div className="text-2xl font-semibold text-foreground tracking-tight">--</div>
             </CardContent>
           </Card>
         ))}
@@ -31,44 +31,44 @@ export function BalanceCards() {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium text-muted-foreground">Net Worth</CardTitle>
+          <DollarSign className="h-4 w-4 text-tertiary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="text-2xl font-semibold text-foreground tracking-tight">
             {formatCurrency(summary?.netWorth || 0)}
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Assets</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium text-muted-foreground">Total Assets</CardTitle>
+          <TrendingUp className="h-4 w-4 text-tertiary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="text-2xl font-semibold text-foreground tracking-tight">
             {formatCurrency(summary?.totalAssets || 0)}
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Liabilities</CardTitle>
-          <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium text-muted-foreground">Total Liabilities</CardTitle>
+          <TrendingDown className="h-4 w-4 text-tertiary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="text-2xl font-semibold text-foreground tracking-tight">
             {formatCurrency(summary?.totalLiabilities || 0)}
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">MTD Spending</CardTitle>
-          <CreditCard className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium text-muted-foreground">MTD Spending</CardTitle>
+          <CreditCard className="h-4 w-4 text-tertiary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="text-2xl font-semibold text-foreground tracking-tight">
             {formatCurrency(summary?.monthToDateSpending || 0)}
           </div>
         </CardContent>

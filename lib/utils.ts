@@ -19,6 +19,11 @@ export function formatCategory(category: string): string {
     .join(" ");
 }
 
+export function formatPercent(value: number): string {
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
+}
+
 export function formatDate(date: Date | string): string {
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",

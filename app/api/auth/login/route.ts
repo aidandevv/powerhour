@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { checkLoginRateLimit } from "@/lib/auth/rate-limit";
+import { getEffectivePasswordHash } from "@/lib/auth/password";
+import { isDemoMode } from "@/lib/demo";
+import { logAuditEvent } from "@/lib/audit-log";
 
 const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
@@ -10,6 +13,16 @@ const loginSchema = z.object({
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+
+  // In demo mode, skip password verification entirely
+  if (isDemoMode()) {
+    const session = await getSession();
+    session.isLoggedIn = true;
+    session.loginTime = Date.now();
+    await session.save();
+    await logAuditEvent("login", ip, { mode: "demo" });
+    return NextResponse.json({ success: true });
+  }
 
   const rateLimit = await checkLoginRateLimit(ip);
   if (!rateLimit.allowed) {
@@ -31,8 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Password is required" }, { status: 400 });
   }
 
-  const passwordHash = process.env.DASHBOARD_PASSWORD_HASH;
-  console.log("DEBUG hash:", JSON.stringify(passwordHash));
+  const passwordHash = await getEffectivePasswordHash();
   if (!passwordHash) {
     return NextResponse.json(
       { error: "Server configuration error" },
@@ -43,10 +55,7 @@ export async function POST(req: NextRequest) {
   const isValid = await bcrypt.compare(parsed.data.password, passwordHash);
   if (!isValid) {
     return NextResponse.json(
-      {
-        error: "Invalid password",
-        remainingAttempts: rateLimit.remainingAttempts,
-      },
+      { error: "Invalid password" },
       { status: 401 }
     );
   }
@@ -56,5 +65,6 @@ export async function POST(req: NextRequest) {
   session.loginTime = Date.now();
   await session.save();
 
+  await logAuditEvent("login", ip);
   return NextResponse.json({ success: true });
 }

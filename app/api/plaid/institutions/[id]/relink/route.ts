@@ -4,11 +4,20 @@ import { db } from "@/lib/db";
 import { institutions } from "@/lib/db/schema";
 import { decrypt } from "@/lib/crypto";
 import { createRelinkToken } from "@/lib/plaid/link";
+import { apiError } from "@/lib/api/error";
+import { isDemoMode } from "@/lib/demo";
 
 export async function POST(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (isDemoMode()) {
+    return NextResponse.json(
+      { error: "Plaid is disabled in demo mode." },
+      { status: 403 }
+    );
+  }
+
   try {
     const { id } = params;
 
@@ -26,7 +35,6 @@ export async function POST(
 
     return NextResponse.json({ link_token: linkToken });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to create relink token";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Failed to create relink token");
   }
 }

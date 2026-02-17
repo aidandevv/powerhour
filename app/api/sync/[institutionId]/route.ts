@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncInstitution } from "@/lib/plaid/sync";
+import { apiError } from "@/lib/api/error";
 
 export async function POST(
   _req: NextRequest,
@@ -9,7 +10,6 @@ export async function POST(
     await syncInstitution(params.institutionId);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Sync failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiError(error, "Sync failed");
   }
 }
