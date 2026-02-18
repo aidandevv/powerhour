@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
@@ -43,7 +43,7 @@ interface ProjectionData {
   shortfalls: { accountId: string; accountName: string; shortfall: number }[];
 }
 
-export default function ProjectionsPage() {
+function ProjectionsPageContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<string>(() =>
@@ -304,5 +304,13 @@ export default function ProjectionsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function ProjectionsPage() {
+  return (
+    <Suspense fallback={<div className="space-y-6"><h1 className="text-3xl font-bold">Projections</h1></div>}>
+      <ProjectionsPageContent />
+    </Suspense>
   );
 }

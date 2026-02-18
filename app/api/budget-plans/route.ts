@@ -22,7 +22,7 @@ export async function GET() {
 
 const createPlanSchema = z.object({
   title: z.string().min(1).max(500),
-  messagesJson: z.array(z.any()),
+  messagesJson: z.array(z.record(z.string(), z.unknown())),
   summaryText: z.string().optional(),
 });
 

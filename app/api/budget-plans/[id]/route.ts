@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 const updatePlanSchema = z.object({
   title: z.string().min(1).max(500).optional(),
-  messagesJson: z.array(z.any()).optional(),
+  messagesJson: z.array(z.record(z.string(), z.unknown())).optional(),
   summaryText: z.string().nullable().optional(),
 });
 

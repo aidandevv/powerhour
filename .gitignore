@@ -37,3 +37,8 @@ next-env.d.ts
 
 # backups
 backups/
+
+# local tooling / planning (keep local, never publish)
+.claude/
+.planning/
+TECHNICAL_FEATURES.md

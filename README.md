@@ -6,30 +6,13 @@ Aggregates spending, balances, and recurring expenses across all your financial 
 
 > **Not affiliated with Plaid.** Each deployer is responsible for their own Plaid API credentials and must comply with Plaid's terms of service.
 
-<p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="800" />
-</p>
-
 ---
 
 ## What it does
 
 **Dashboard** — Net worth tracking, spending trends by category, credit utilization, account balances, and KPI cards. All charts update daily via automated Plaid sync.
 
-**Ticker AI chat** — A conversational agent embedded in the dashboard. Ask things like *"How much did I spend on dining last month?"*, *"Audit my subscriptions"*, or *"Generate a report for January"*. Ticker calls 15 tools to query your real transaction data and streams answers back in real time.
-
-<details>
-<summary>Screenshots</summary>
-
-| Ticker AI Chat | Budget Planner | Transactions |
-|---|---|---|
-| ![Ticker](docs/screenshots/ticker-chat.png) | ![Planner](docs/screenshots/budget-planner.png) | ![Transactions](docs/screenshots/transactions.png) |
-
-| Subscriptions | Budgets | PDF Report |
-|---|---|---|
-| ![Subscriptions](docs/screenshots/subscriptions.png) | ![Budgets](docs/screenshots/budgets.png) | ![Report](docs/screenshots/pdf-report.png) |
-
-</details>
+**Ticker AI chat** — A conversational agent embedded in the dashboard. Ask things like *"How much did I spend on dining last month?"*, *"Audit my subscriptions"*, or *"Generate a report for January"*. Ticker calls 24 tools to query your real transaction data and streams answers back in real time.
 
 **Budget Planner** — A separate AI agent with three modes:
 - **Travel budgets** — Researches real costs via Google search grounding, then builds a detailed budget table with low/mid/high estimates
@@ -219,3 +202,12 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.
 ## License
 
 ISC
+
+## Font attribution
+
+This project includes PP Mori and PP Kyoto font files under `public/fonts/`.
+
+- PP Mori: https://pangrampangram.com/products/mori
+- PP Kyoto: https://pangrampangram.com/products/pp-kyoto
+
+Use of these font files in derivative deployments is subject to the respective font license terms from Pangram Pangram.
