@@ -65,4 +65,60 @@ describe("PiiMasker", () => {
       );
     });
   });
+
+  describe("merchant normalization", () => {
+    it("strips store numbers before registering", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("Walgreens #1234");
+      expect(masker.maskText("Walgreens #1234")).toBe("Merchant-1");
+      expect(masker.maskText("Walgreens")).toBe("Merchant-1");
+    });
+
+    it("strips trailing city/state patterns", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("Target Sacramento CA");
+      expect(masker.maskText("Target Sacramento CA")).toBe("Merchant-1");
+      expect(masker.maskText("Target")).toBe("Merchant-1");
+    });
+
+    it("strips trailing ZIP codes", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("Costco 95616");
+      expect(masker.maskText("Costco 95616")).toBe("Merchant-1");
+      expect(masker.maskText("Costco")).toBe("Merchant-1");
+    });
+
+    it("handles combined store number + location", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("Walgreens #1234 Sacramento CA 95616");
+      expect(masker.maskText("Walgreens #1234 Sacramento CA 95616")).toBe("Merchant-1");
+      expect(masker.maskText("Walgreens")).toBe("Merchant-1");
+    });
+  });
+
+  describe("P2P transaction masking", () => {
+    it("masks Venmo payment names", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("VENMO PAYMENT TO JOHN SMITH");
+      expect(masker.maskText("VENMO PAYMENT TO JOHN SMITH")).toBe("Merchant-1");
+    });
+
+    it("masks Zelle payment names", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("ZELLE TO JANE DOE");
+      expect(masker.maskText("ZELLE TO JANE DOE")).toBe("Merchant-1");
+    });
+
+    it("masks CashApp payment names", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("CASH APP*JOHN SMITH");
+      expect(masker.maskText("CASH APP*JOHN SMITH")).toBe("Merchant-1");
+    });
+
+    it("masks PayPal payment names", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("PAYPAL *JANE DOE");
+      expect(masker.maskText("PAYPAL *JANE DOE")).toBe("Merchant-1");
+    });
+  });
 });

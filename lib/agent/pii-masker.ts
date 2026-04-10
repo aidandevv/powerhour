@@ -8,6 +8,21 @@
 
 type EntityType = "institution" | "account" | "merchant";
 
+/** Strip store numbers, trailing city/state, and ZIP codes from merchant names. */
+function normalizeMerchant(raw: string): string {
+  let name = raw.trim();
+  // Strip store numbers: #1234, # 1234
+  name = name.replace(/\s*#\s*\d+/g, "");
+  // Strip trailing ZIP: 5 digits optionally followed by -4 digits
+  name = name.replace(/\s+\d{5}(-\d{4})?\s*$/, "");
+  // Strip trailing city/state: 1-2 capitalized words + 2-letter state code at end
+  name = name.replace(
+    /\s+[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*\s+[A-Z]{2}\s*$/,
+    ""
+  );
+  return name.trim();
+}
+
 interface AliasEntry {
   real: string;
   alias: string;
@@ -36,8 +51,33 @@ export class PiiMasker {
     return this.register(name, "account");
   }
 
-  registerMerchant(name: string): string {
-    return this.register(name, "merchant");
+  registerMerchant(raw: string): string {
+    // Register the raw form so exact matches work
+    const existingRaw = this.realToAlias.get(raw);
+    if (existingRaw) return existingRaw;
+
+    const normalized = normalizeMerchant(raw);
+
+    // Check if the normalized form was already registered
+    const existingNorm = this.realToAlias.get(normalized);
+    if (existingNorm) {
+      // Also register the raw form pointing to the same alias
+      this.realToAlias.set(raw, existingNorm);
+      this.dirty = true;
+      return existingNorm;
+    }
+
+    const alias = this.nextAlias("merchant");
+
+    // Register both raw and normalized forms
+    this.realToAlias.set(raw, alias);
+    this.aliasToReal.set(alias, normalized); // unmask to the clean form
+    if (normalized !== raw) {
+      this.realToAlias.set(normalized, alias);
+    }
+
+    this.dirty = true;
+    return alias;
   }
 
   private register(real: string, type: EntityType): string {
