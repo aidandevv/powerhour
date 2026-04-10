@@ -121,4 +121,106 @@ describe("PiiMasker", () => {
       expect(masker.maskText("PAYPAL *JANE DOE")).toBe("Merchant-1");
     });
   });
+
+  describe("maskToolResult", () => {
+    it("deep-masks string fields in an object", () => {
+      const masker = new PiiMasker();
+      masker.registerAccount("Chase Checking");
+      masker.registerMerchant("Starbucks");
+
+      const result = masker.maskToolResult({
+        accountName: "Chase Checking",
+        transactions: [
+          { name: "Starbucks", amount: 5.5 },
+          { name: "Starbucks", amount: 4.0 },
+        ],
+        total: 9.5,
+      });
+
+      expect(result).toEqual({
+        accountName: "Account-A",
+        transactions: [
+          { name: "Merchant-1", amount: 5.5 },
+          { name: "Merchant-1", amount: 4.0 },
+        ],
+        total: 9.5,
+      });
+    });
+
+    it("registers unknown merchant strings from name/merchantName fields", () => {
+      const masker = new PiiMasker();
+      const result = masker.maskToolResult({
+        name: "Target",
+        merchantName: "Target",
+        amount: 50,
+      });
+
+      expect(result).toEqual({
+        name: "Merchant-1",
+        merchantName: "Merchant-1",
+        amount: 50,
+      });
+    });
+
+    it("does not mask non-entity string fields like category or frequency", () => {
+      const masker = new PiiMasker();
+      const result = masker.maskToolResult({
+        category: "FOOD_AND_DRINK",
+        frequency: "monthly",
+        type: "credit",
+      });
+
+      expect(result).toEqual({
+        category: "FOOD_AND_DRINK",
+        frequency: "monthly",
+        type: "credit",
+      });
+    });
+
+    it("masks embedded entity names in summary strings", () => {
+      const masker = new PiiMasker();
+      masker.registerAccount("Chase Checking");
+      const result = masker.maskToolResult({
+        summary: "Chase Checking has a shortfall of $200",
+      });
+
+      expect(result).toEqual({
+        summary: "Account-A has a shortfall of $200",
+      });
+    });
+  });
+
+  describe("unmaskToolInput", () => {
+    it("unmasks configured parameters for search_transactions", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("Starbucks");
+
+      const result = masker.unmaskToolInput("search_transactions", {
+        query: "Merchant-1",
+        from: "2026-01-01",
+        to: "2026-03-31",
+      });
+
+      expect(result).toEqual({
+        query: "Starbucks",
+        from: "2026-01-01",
+        to: "2026-03-31",
+      });
+    });
+
+    it("does not unmask parameters for unconfigured tools", () => {
+      const masker = new PiiMasker();
+      masker.registerMerchant("Starbucks");
+
+      const result = masker.unmaskToolInput("get_spending_summary", {
+        from: "2026-01-01",
+        category: "Merchant-1",
+      });
+
+      expect(result).toEqual({
+        from: "2026-01-01",
+        category: "Merchant-1",
+      });
+    });
+  });
 });

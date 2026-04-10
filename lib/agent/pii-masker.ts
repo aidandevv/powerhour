@@ -41,6 +41,43 @@ export class PiiMasker {
   private sortedAliases: AliasEntry[] = [];
   private dirty = false;
 
+  // Fields whose values should be auto-registered as merchants when encountered
+  private static MERCHANT_FIELDS = new Set([
+    "name",
+    "merchantName",
+    "accountName",
+    "institutionName",
+  ]);
+
+  // Fields that should never be masked (category codes, types, etc.)
+  private static PASSTHROUGH_FIELDS = new Set([
+    "id",
+    "category",
+    "frequency",
+    "type",
+    "subtype",
+    "currencyCode",
+    "date",
+    "lastDate",
+    "nextProjectedDate",
+    "status",
+    "institutionStatus",
+    "reason",
+    "flagged",
+    "isUserConfirmed",
+    "isActive",
+  ]);
+
+  // Tool → parameter keys to unmask before DB queries
+  private static UNMASK_CONFIG: Record<string, Set<string>> = {
+    search_transactions: new Set(["query"]),
+    get_merchant_category_info: new Set(["merchant"]),
+    suggest_transactions_for_group: new Set(["query"]),
+    create_expense_group: new Set(["name", "description"]),
+    create_savings_target: new Set(["name"]),
+    create_budget_goal: new Set(["categoryLabel", "rationale"]),
+  };
+
   // ── Registration ──────────────────────────────────────────────
 
   registerInstitution(name: string): string {
@@ -151,6 +188,61 @@ export class PiiMasker {
   /** Check if a string contains any alias patterns. */
   hasPartialAlias(text: string): boolean {
     return /(?:Bank-|Account-|Merchant-)\d*$/.test(text);
+  }
+
+  /** Deep-walk a tool result, masking PII strings. */
+  maskToolResult(data: unknown): unknown {
+    if (data === null || data === undefined) return data;
+    if (typeof data === "number" || typeof data === "boolean") return data;
+    if (typeof data === "string") return this.maskText(data);
+    if (Array.isArray(data)) return data.map((item) => this.maskToolResult(item));
+
+    if (typeof data === "object") {
+      const obj = data as Record<string, unknown>;
+      const masked: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (PiiMasker.PASSTHROUGH_FIELDS.has(key)) {
+          masked[key] = value;
+        } else if (
+          typeof value === "string" &&
+          PiiMasker.MERCHANT_FIELDS.has(key)
+        ) {
+          // Auto-register entity names from known fields
+          if (key === "institutionName") {
+            this.registerInstitution(value);
+          } else if (key === "accountName") {
+            this.registerAccount(value);
+          } else {
+            this.registerMerchant(value);
+          }
+          masked[key] = this.maskText(value);
+        } else {
+          masked[key] = this.maskToolResult(value);
+        }
+      }
+      return masked;
+    }
+
+    return data;
+  }
+
+  /** Unmask specific tool input parameters so DB queries use real values. */
+  unmaskToolInput(
+    toolName: string,
+    params: Record<string, unknown>
+  ): Record<string, unknown> {
+    const keysToUnmask = PiiMasker.UNMASK_CONFIG[toolName];
+    if (!keysToUnmask) return params;
+
+    const unmasked: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (keysToUnmask.has(key) && typeof value === "string") {
+        unmasked[key] = this.unmaskText(value);
+      } else {
+        unmasked[key] = value;
+      }
+    }
+    return unmasked;
   }
 }
 
