@@ -7,7 +7,9 @@
 import { type UIMessage } from "ai";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import { runBudgetPlannerAgent } from "@/lib/agent/budget-planner-agent";
+import { PiiMasker } from "@/lib/agent/pii-masker";
 import { apiError } from "@/lib/api/error";
+import { getTrustedClientIp } from "@/lib/auth/client-ip";
 
 export const runtime = "nodejs";
 
@@ -19,10 +21,7 @@ const plannerRateLimiter = new RateLimiterMemory({
 
 export async function POST(req: Request) {
   try {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      req.headers.get("x-real-ip") ??
-      "unknown";
+    const ip = getTrustedClientIp(req.headers);
 
     try {
       await plannerRateLimiter.consume(ip);
@@ -53,7 +52,10 @@ export async function POST(req: Request) {
         ? { budgetContext }
         : undefined;
 
-    const result = await runBudgetPlannerAgent(messages, options);
+    const masker = new PiiMasker();
+    await masker.seedFromDatabase();
+
+    const result = await runBudgetPlannerAgent(messages, options, masker);
 
     return result.toUIMessageStreamResponse();
   } catch (error: unknown) {

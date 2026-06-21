@@ -29,6 +29,7 @@ import type { AccountBalancesResult } from "@/lib/agent/tools/account-balances";
 import type { RecurringExpensesResult } from "@/lib/agent/tools/recurring-expenses";
 import { apiError } from "@/lib/api/error";
 import { logAuditEvent } from "@/lib/audit-log";
+import { getTrustedClientIp } from "@/lib/auth/client-ip";
 
 export const runtime = "nodejs";
 
@@ -49,10 +50,7 @@ const requestSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      req.headers.get("x-real-ip") ??
-      "unknown";
+    const ip = getTrustedClientIp(req.headers);
 
     try {
       await reportRateLimiter.consume(ip);

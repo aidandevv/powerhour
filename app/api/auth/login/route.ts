@@ -6,13 +6,14 @@ import { checkLoginRateLimit } from "@/lib/auth/rate-limit";
 import { getEffectivePasswordHash } from "@/lib/auth/password";
 import { isDemoMode } from "@/lib/demo";
 import { logAuditEvent } from "@/lib/audit-log";
+import { getTrustedClientIp } from "@/lib/auth/client-ip";
 
 const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = getTrustedClientIp(req.headers);
 
   // In demo mode, skip password verification entirely
   if (isDemoMode()) {
