@@ -5,8 +5,12 @@
  * Masks text before it reaches the LLM, unmasks LLM output before
  * it reaches the UI. One instance per agent request.
  */
+import { asc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { accounts, institutions } from "@/lib/db/schema";
 
 type EntityType = "institution" | "account" | "merchant";
+const ALIAS_PARTIAL_PATTERN = /(?:Bank-\d*|Merchant-\d*|Account-[A-Z]*)$/;
 
 /** Strip store numbers, trailing city/state, and ZIP codes from merchant names. */
 function normalizeMerchant(raw: string): string {
@@ -80,6 +84,29 @@ export class PiiMasker {
 
   // ── Registration ──────────────────────────────────────────────
 
+  async seedFromDatabase(): Promise<void> {
+    const [institutionRows, accountRows] = await Promise.all([
+      db
+        .select({ institutionName: institutions.institutionName })
+        .from(institutions)
+        .where(eq(institutions.status, "active"))
+        .orderBy(asc(institutions.institutionName)),
+      db
+        .select({ accountName: accounts.name })
+        .from(accounts)
+        .where(eq(accounts.isActive, true))
+        .orderBy(asc(accounts.name)),
+    ]);
+
+    for (const row of institutionRows) {
+      this.registerInstitution(row.institutionName);
+    }
+
+    for (const row of accountRows) {
+      this.registerAccount(row.accountName);
+    }
+  }
+
   registerInstitution(name: string): string {
     return this.register(name, "institution");
   }
@@ -144,7 +171,7 @@ export class PiiMasker {
 
   private rebuildIfDirty() {
     if (!this.dirty) return;
-    this.sortedEntries = [...this.realToAlias.entries()]
+    this.sortedEntries = Array.from(this.realToAlias.entries())
       .map(([real, alias]) => ({
         real,
         alias,
@@ -152,7 +179,7 @@ export class PiiMasker {
       }))
       .sort((a, b) => b.real.length - a.real.length);
 
-    this.sortedAliases = [...this.aliasToReal.entries()]
+    this.sortedAliases = Array.from(this.aliasToReal.entries())
       .map(([alias, real]) => ({
         real,
         alias,
@@ -187,7 +214,40 @@ export class PiiMasker {
 
   /** Check if a string contains any alias patterns. */
   hasPartialAlias(text: string): boolean {
-    return /(?:Bank-|Account-|Merchant-)\d*$/.test(text);
+    return ALIAS_PARTIAL_PATTERN.test(text);
+  }
+
+  splitBufferedText(text: string): { flushed: string; buffered: string } {
+    this.rebuildIfDirty();
+
+    let buffered = "";
+    for (const entry of this.sortedAliases) {
+      const maxPrefixLength = Math.min(entry.alias.length - 1, text.length);
+      for (let length = maxPrefixLength; length > buffered.length; length--) {
+        const suffix = text.slice(-length);
+        if (entry.alias.startsWith(suffix)) {
+          buffered = suffix;
+          break;
+        }
+      }
+    }
+
+    if (buffered.length > 0) {
+      return {
+        flushed: text.slice(0, -buffered.length),
+        buffered,
+      };
+    }
+
+    const partialMatch = text.match(ALIAS_PARTIAL_PATTERN);
+    if (!partialMatch || partialMatch.index === undefined) {
+      return { flushed: text, buffered: "" };
+    }
+
+    return {
+      flushed: text.slice(0, partialMatch.index),
+      buffered: text.slice(partialMatch.index),
+    };
   }
 
   /** Deep-walk a tool result, masking PII strings. */

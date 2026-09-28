@@ -8,10 +8,10 @@ export const runtime = "nodejs";
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await db.delete(savingsTargets).where(eq(savingsTargets.id, id));
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

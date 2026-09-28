@@ -74,14 +74,16 @@ Aggregates spending, balances, and recurring expenses across all your financial 
 ### Prerequisites
 
 - Node.js 22+
-- Docker and Docker Compose
-- A [Plaid developer account](https://dashboard.plaid.com)
-- A [Google AI Studio API key](https://aistudio.google.com/app/apikey) (for Gemini)
+- Docker Engine with Docker Compose v2 (`docker compose`)
+- A [Plaid developer account](https://dashboard.plaid.com) for real bank syncs
+- A [Google AI Studio API key](https://aistudio.google.com/app/apikey) for AI chat, reports, and budget planning
+
+Plaid and Gemini are optional for demo mode. Demo mode seeds fake data and is the fastest way to verify the app before connecting real accounts.
 
 ### Setup
 
 ```bash
-git clone https://github.com/your-username/powerhour.git
+git clone https://github.com/<owner>/powerhour.git
 cd powerhour
 npm install
 
@@ -111,39 +113,88 @@ To run without Plaid credentials, set `DEMO_MODE=true` and `NEXT_PUBLIC_DEMO_MOD
 
 ## Production deployment
 
-### Docker Compose
+### Release Docker Compose (recommended)
+
+This is the easiest production path: download the release Compose file, generate a host `.env`, run migrations, then start the app. It does not require Node.js or a source checkout on the server.
 
 ```bash
 # On your server
-git clone https://github.com/your-username/powerhour.git /opt/powerhour
+mkdir -p /opt/powerhour
 cd /opt/powerhour
-cp .env.example .env && nano .env
 
-# Build and start all services (app, db, nginx)
-docker compose -f docker/docker-compose.yml up -d --build
+# Pick the version you want to deploy
+export POWERHOUR_VERSION=v1.0.0
+export POWERHOUR_IMAGE="ghcr.io/<owner>/powerhour:${POWERHOUR_VERSION}"
 
-# Push schema
-docker compose -f docker/docker-compose.yml exec app npx drizzle-kit push
+curl -fsSLO "https://github.com/<owner>/powerhour/releases/download/${POWERHOUR_VERSION}/docker-compose.yml"
+curl -fsSLo .env.example "https://github.com/<owner>/powerhour/releases/download/${POWERHOUR_VERSION}/env.example"
+curl -fsSLO "https://github.com/<owner>/powerhour/releases/download/${POWERHOUR_VERSION}/checksums.sha256"
+sha256sum -c checksums.sha256
+
+# Generate .env interactively
+docker run --rm -it \
+  -v "$PWD:/workspace" \
+  "${POWERHOUR_IMAGE}" \
+  node scripts/setup.cjs \
+    --env /workspace/.env \
+    --template /workspace/.env.example \
+    --version "${POWERHOUR_VERSION}"
+
+# Initialize or upgrade the database, then start the app
+docker compose --profile tools run --rm migrate
+docker compose up -d
 ```
 
+The setup wizard asks for production or demo mode, generates secrets, writes `.env`, and prints the exact migration/start commands. When run through the release image, the wizard usually cannot run Docker Compose itself because the Docker CLI/socket is not mounted into that container; run the printed commands from your host shell.
+
+For a quick demo install, choose `demo` in the wizard. It enables seeded fake data and skips Plaid credential prompts. AI chat, reports, budget goals, digests, and budget planner still need a Gemini key; the wizard lets you add one during demo setup or later in `.env`.
+
+The release Compose file uses `POWERHOUR_IMAGE` and binds the app to `127.0.0.1:3000` by default. Put Caddy, nginx, Traefik, Cloudflare Tunnel, or another TLS reverse proxy in front of it for internet access. Set `POWERHOUR_HOST=0.0.0.0` only if you intentionally want Docker to bind directly on every network interface.
+
+Useful release commands:
+
+```bash
+docker compose ps
+docker compose logs -f app
+curl -fsS http://127.0.0.1:3000/api/health
+```
+
+If you prefer manual setup, copy `.env.example` to `.env`, fill in the required values, then run the same migration and start commands above. Wrap `DASHBOARD_PASSWORD_HASH` in single quotes because bcrypt hashes contain `$` characters that Docker Compose otherwise treats as interpolation syntax.
+
+For source builds from a cloned repository, use:
+
+```bash
+git clone https://github.com/<owner>/powerhour.git /opt/powerhour
+cd /opt/powerhour
+cp .env.example .env && nano .env
+docker compose -f docker/docker-compose.yml up -d --build
+docker compose -f docker/docker-compose.yml exec app node scripts/migrate.mjs
+```
+
+The source Compose file exposes the app on `127.0.0.1:3000` by default. Its bundled nginx service is opt-in for hosts where you want this repo to manage TLS directly.
+
 ### TLS
+
+The release Compose file intentionally leaves TLS to your reverse proxy. If you build from source and want to use the bundled nginx config, issue certificates first, then start Compose with the `tls` profile:
 
 ```bash
 sudo apt install certbot
 sudo certbot certonly --standalone -d finance.yourdomain.com
+docker compose -f docker/docker-compose.yml --profile tls up -d --build
 ```
 
-Update `nginx.conf` with your certificate paths. Auto-renewal:
+Update `docker/nginx/nginx.conf` with your certificate paths and server name. Auto-renewal:
 
 ```bash
-echo "0 3 * * * certbot renew --quiet --deploy-hook 'docker compose -f /opt/powerhour/docker/docker-compose.yml restart nginx'" | sudo crontab -
+echo "0 3 * * * certbot renew --quiet --deploy-hook 'docker compose -f /opt/powerhour/docker/docker-compose.yml --profile tls restart nginx'" | sudo crontab -
 ```
 
 ### Database backups
 
 ```bash
 # Daily encrypted backup via cron
-docker compose -f /opt/powerhour/docker/docker-compose.yml exec -T db \
+cd /opt/powerhour
+docker compose exec -T db \
   pg_dump -U finance_app finance | \
   gpg --symmetric --batch --passphrase-file /opt/powerhour/.backup-passphrase \
   > /opt/powerhour/backups/finance_$(date +%Y%m%d).sql.gpg
@@ -151,6 +202,8 @@ docker compose -f /opt/powerhour/docker/docker-compose.yml exec -T db \
 # Restore
 gpg --decrypt backup_file.sql.gpg | docker compose exec -T db psql -U finance_app finance
 ```
+
+For source deployments, add `-f docker/docker-compose.yml` to the backup and restore `docker compose` commands.
 
 ---
 
@@ -191,7 +244,7 @@ In-process cron started via Next.js `instrumentation.ts`. Daily Plaid sync at 06
 | `budget_goals` | AI-generated spending caps per category |
 | `audit_log` | Immutable event log with IP and metadata |
 
-Migrations managed with Drizzle Kit (`npm run db:push` for development, manual migrations for production).
+Migrations are generated with Drizzle Kit. Use `npm run db:push` for development, and `node scripts/migrate.mjs` or the release Compose `migrate` service for production deployments.
 
 ---
 
@@ -199,15 +252,25 @@ Migrations managed with Drizzle Kit (`npm run db:push` for development, manual m
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.
 
+## CI/CD
+
+Pull requests and pushes to `main` run linting, TypeScript checks, full-source
+coverage reporting, a disposable PostgreSQL integration suite, deterministic
+demo browser smoke tests, production dependency audit, Next.js build, Docker
+image build, and Docker Compose validation in GitHub Actions. CI retains
+coverage reports and failed browser-test evidence for 14 days.
+
+See [docs/TESTING.md](./docs/TESTING.md) for the test tiers, local setup, and
+database safety guard.
+
+Tags that match `v*.*.*` run the release preflight, publish
+the configured container image, generate image provenance, and attach
+`docker-compose.yml`, `env.example`, and checksums to the GitHub release.
+
 ## License
 
 ISC
 
-## Font attribution
+## Font policy
 
-This project includes PP Mori and PP Kyoto font files under `public/fonts/`.
-
-- PP Mori: https://pangrampangram.com/products/mori
-- PP Kyoto: https://pangrampangram.com/products/pp-kyoto
-
-Use of these font files in derivative deployments is subject to the respective font license terms from Pangram Pangram.
+This repository uses system font stacks and does not ship proprietary font binaries. See [docs/FONTS.md](./docs/FONTS.md) before adding custom fonts to a public fork.

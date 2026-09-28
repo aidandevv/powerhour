@@ -15,6 +15,12 @@ import {
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { buildSystemPrompt } from "./prompt";
+import type { PiiMasker } from "./pii-masker";
+import {
+  createPiiTransform,
+  maskUserMessages,
+  wrapToolsWithMasker,
+} from "./pii-transform";
 
 // Tool function imports
 import { getSpendingSummary } from "./tools/spending-summary";
@@ -316,14 +322,16 @@ export type AgentTools = typeof agentTools;
  * Run the agent with streaming. Returns a streamText result that can be
  * converted to a streaming response via .toUIMessageStreamResponse().
  */
-export async function runAgent(messages: UIMessage[]) {
-  const modelMessages = await convertToModelMessages(messages);
+export async function runAgent(messages: UIMessage[], masker?: PiiMasker) {
+  const preparedMessages = masker ? maskUserMessages(messages, masker) : messages;
+  const modelMessages = await convertToModelMessages(preparedMessages);
 
   return streamText({
     model,
     system: buildSystemPrompt(),
     messages: modelMessages,
-    tools: agentTools,
+    tools: masker ? wrapToolsWithMasker(agentTools, masker) : agentTools,
+    experimental_transform: masker ? createPiiTransform(masker) : undefined,
     stopWhen: stepCountIs(8),
     abortSignal: AbortSignal.timeout(90_000),
     onError: ({ error }) => {

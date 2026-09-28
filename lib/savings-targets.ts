@@ -19,7 +19,9 @@ export function parseBudgetTotal(summaryText: string | null): number | null {
 }
 
 export function monthsUntil(targetDate: string): number {
-  const target = new Date(targetDate);
+  const [year, month, day] = targetDate.split("-").map(Number);
+  const target = new Date(year, month - 1, day);
+  if (Number.isNaN(target.getTime())) return 1;
   const now = new Date();
   const months =
     (target.getFullYear() - now.getFullYear()) * 12 +

@@ -13,8 +13,9 @@ const patchSchema = z.object({
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const parsed = patchSchema.safeParse(body);
 
@@ -39,7 +40,7 @@ export async function PATCH(
   const [updated] = await db
     .update(budgetGoals)
     .set(updates)
-    .where(eq(budgetGoals.id, params.id))
+    .where(eq(budgetGoals.id, id))
     .returning();
 
   if (!updated) {
@@ -51,12 +52,13 @@ export async function PATCH(
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const [updated] = await db
     .update(budgetGoals)
     .set({ status: "dismissed", updatedAt: new Date() })
-    .where(eq(budgetGoals.id, params.id))
+    .where(eq(budgetGoals.id, id))
     .returning();
 
   if (!updated) {

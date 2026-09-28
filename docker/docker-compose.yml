@@ -9,8 +9,8 @@ services:
       db:
         condition: service_healthy
     networks: [internal]
-    expose:
-      - "3000"
+    ports:
+      - "${POWERHOUR_HOST:-127.0.0.1}:${POWERHOUR_PORT:-3000}:3000"
 
   db:
     image: postgres:16-alpine
@@ -31,6 +31,7 @@ services:
 
   nginx:
     image: nginx:1.27-alpine
+    profiles: ["tls"]
     restart: unless-stopped
     ports:
       - "80:80"
@@ -38,7 +39,9 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on: [app]
+    depends_on:
+      app:
+        condition: service_healthy
     networks: [internal]
 
 volumes:

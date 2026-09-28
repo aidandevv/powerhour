@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAssetLiabilityHistory } from "@/hooks/use-dashboard";
+import { asNumber, asText } from "./formatters";
 
 function fmtDate(iso: string) {
   const d = new Date(iso + "T00:00:00");
@@ -60,11 +61,14 @@ export function AssetLiabilityChart() {
               />
               <YAxis tickFormatter={fmtAxis} fontSize={11} />
               <Tooltip
-                labelFormatter={fmtDate}
-                formatter={(value: number, name: string) => [
-                  `$${value.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-                  name === "assets" ? "Assets" : "Liabilities",
-                ]}
+                labelFormatter={(label) => fmtDate(asText(label))}
+                formatter={(value, name) => {
+                  const series = asText(name);
+                  return [
+                    `$${asNumber(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                    series === "assets" ? "Assets" : "Liabilities",
+                  ];
+                }}
               />
               <Legend
                 formatter={(value) => (value === "assets" ? "Assets" : "Liabilities")}

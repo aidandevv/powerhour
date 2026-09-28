@@ -20,7 +20,7 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-background">
       {isDemoMode && (
         <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-sm text-amber-700 dark:text-amber-400">
-          Demo mode — data is simulated and read-only. Plaid syncing is disabled.
+          Demo mode — data is simulated. Plaid linking and syncing are disabled.
         </div>
       )}
       <DashboardNav />

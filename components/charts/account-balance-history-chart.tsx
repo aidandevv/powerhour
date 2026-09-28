@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAccountBalancesHistory } from "@/hooks/use-dashboard";
+import { asNumber, asText } from "./formatters";
 
 const LINE_COLORS = [
   "hsl(205, 59%, 25%)",
@@ -86,12 +87,13 @@ export function AccountBalanceHistoryChart() {
               />
               <YAxis tickFormatter={fmtAxis} fontSize={11} />
               <Tooltip
-                labelFormatter={fmtDate}
-                formatter={(value: number, name: string) => {
-                  const acct = accountData.find((a) => a.id === name);
+                labelFormatter={(label) => fmtDate(asText(label))}
+                formatter={(value, name) => {
+                  const accountId = asText(name);
+                  const acct = accountData.find((a) => a.id === accountId);
                   return [
-                    `$${value.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-                    acct?.name ?? name,
+                    `$${asNumber(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                    acct?.name ?? accountId,
                   ];
                 }}
               />
