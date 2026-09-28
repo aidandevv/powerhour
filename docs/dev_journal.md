@@ -192,3 +192,17 @@
 **Follow-ups:** Create a local preservation checkpoint, push the hierarchy, then remove the obsolete remote branch after confirming the new refs are present.
 
 ---
+
+### [CP-MILESTONE] | 2026-09-27: Branch Hierarchy Published
+
+**Summary:** Published `dev`, `stable`, and the focused audit-fix working branch, then removed the obsolete legacy branch from both the remote and primary checkout.
+
+**Files/Modules Affected:** Git refs only.
+
+**Key Trade-off:** Kept the separate restoration worktree intact because it remains an active, recoverable reference; only the duplicate legacy branch was removed.
+
+**Evidence:** Remote verification confirms `main`, `stable`, `dev`, and `fix/security-audit-findings`; the primary checkout is clean and tracks the fix branch.
+
+**Follow-ups:** Use pull requests to promote the fix branch into `dev`, then advance `dev` to `stable` and `stable` to `main` under the documented merge policy.
+
+---
