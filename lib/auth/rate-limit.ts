@@ -43,24 +43,27 @@ export async function checkLoginRateLimit(ip: string): Promise<{
   }
 }
 
-export async function checkGlobalLoginFailureLimit(): Promise<{
+/**
+ * Reserves one global failure point before the password is checked, so
+ * concurrent requests cannot all pass the ceiling check while bcrypt runs.
+ * Call releaseGlobalLoginAttempt() after a successful login to refund it.
+ */
+export async function reserveGlobalLoginAttempt(): Promise<{
   allowed: boolean;
   retryAfterSeconds?: number;
 }> {
-  const res = await globalLoginFailureLimiter.get(GLOBAL_LOGIN_KEY);
-  if (res && res.consumedPoints >= GLOBAL_LOGIN_FAILURE_POINTS) {
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.ceil(res.msBeforeNext / 1000),
-    };
-  }
-  return { allowed: true };
-}
-
-export async function recordGlobalLoginFailure(): Promise<void> {
   try {
     await globalLoginFailureLimiter.consume(GLOBAL_LOGIN_KEY);
-  } catch {
-    // Already at the ceiling; checkGlobalLoginFailureLimit reports the block.
+    return { allowed: true };
+  } catch (rejRes: unknown) {
+    const rej = rejRes as { msBeforeNext?: number };
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.ceil((rej.msBeforeNext ?? 0) / 1000),
+    };
   }
+}
+
+export async function releaseGlobalLoginAttempt(): Promise<void> {
+  await globalLoginFailureLimiter.reward(GLOBAL_LOGIN_KEY, 1);
 }

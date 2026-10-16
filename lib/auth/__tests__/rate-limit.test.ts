@@ -14,24 +14,29 @@ describe("global login failure limiter", () => {
     rateLimit = await freshModule();
   });
 
-  it("allows attempts until 50 failures are recorded across all clients", async () => {
-    for (let i = 0; i < 49; i++) {
-      await rateLimit.recordGlobalLoginFailure();
+  it("allows 50 unreleased attempts across all clients, then blocks", async () => {
+    for (let i = 0; i < 50; i++) {
+      expect(await rateLimit.reserveGlobalLoginAttempt()).toEqual({ allowed: true });
     }
-    expect(await rateLimit.checkGlobalLoginFailureLimit()).toEqual({ allowed: true });
 
-    await rateLimit.recordGlobalLoginFailure();
-    const blocked = await rateLimit.checkGlobalLoginFailureLimit();
+    const blocked = await rateLimit.reserveGlobalLoginAttempt();
     expect(blocked.allowed).toBe(false);
     expect(blocked.retryAfterSeconds).toBeGreaterThan(0);
     expect(blocked.retryAfterSeconds).toBeLessThanOrEqual(15 * 60);
   });
 
-  it("tolerates failures recorded past the ceiling", async () => {
-    for (let i = 0; i < 55; i++) {
-      await rateLimit.recordGlobalLoginFailure();
+  it("caps concurrent attempts at the ceiling", async () => {
+    const results = await Promise.all(
+      Array.from({ length: 80 }, () => rateLimit.reserveGlobalLoginAttempt())
+    );
+    expect(results.filter((r) => r.allowed)).toHaveLength(50);
+  });
+
+  it("refunds attempts released after a successful login", async () => {
+    for (let i = 0; i < 60; i++) {
+      expect((await rateLimit.reserveGlobalLoginAttempt()).allowed).toBe(true);
+      await rateLimit.releaseGlobalLoginAttempt();
     }
-    expect((await rateLimit.checkGlobalLoginFailureLimit()).allowed).toBe(false);
   });
 
   it("is independent of the per-client limiter", async () => {
@@ -39,6 +44,6 @@ describe("global login failure limiter", () => {
       expect((await rateLimit.checkLoginRateLimit("unknown")).allowed).toBe(true);
     }
     expect((await rateLimit.checkLoginRateLimit("unknown")).allowed).toBe(false);
-    expect(await rateLimit.checkGlobalLoginFailureLimit()).toEqual({ allowed: true });
+    expect(await rateLimit.reserveGlobalLoginAttempt()).toEqual({ allowed: true });
   });
 });

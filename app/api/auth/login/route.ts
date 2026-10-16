@@ -3,9 +3,9 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import {
-  checkGlobalLoginFailureLimit,
   checkLoginRateLimit,
-  recordGlobalLoginFailure,
+  releaseGlobalLoginAttempt,
+  reserveGlobalLoginAttempt,
 } from "@/lib/auth/rate-limit";
 import { getEffectivePasswordHash } from "@/lib/auth/password";
 import { isDemoMode } from "@/lib/demo";
@@ -37,14 +37,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const globalLimit = await checkGlobalLoginFailureLimit();
-  if (!globalLimit.allowed) {
-    return NextResponse.json(
-      { error: `Too many login attempts. Try again in ${globalLimit.retryAfterSeconds} seconds.` },
-      { status: 429 }
-    );
-  }
-
   let body: unknown;
   try {
     body = await req.json();
@@ -65,14 +57,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const globalLimit = await reserveGlobalLoginAttempt();
+  if (!globalLimit.allowed) {
+    return NextResponse.json(
+      { error: `Too many login attempts. Try again in ${globalLimit.retryAfterSeconds} seconds.` },
+      { status: 429 }
+    );
+  }
+
   const isValid = await bcrypt.compare(parsed.data.password, passwordHash);
   if (!isValid) {
-    await recordGlobalLoginFailure();
     return NextResponse.json(
       { error: "Invalid password" },
       { status: 401 }
     );
   }
+
+  await releaseGlobalLoginAttempt();
 
   const session = await getSession();
   session.isLoggedIn = true;

@@ -213,7 +213,7 @@
 
 **Files/Modules Affected:** `lib/auth/client-ip.ts`, `lib/auth/rate-limit.ts`, `app/api/auth/login/route.ts`, `.env.example`, README, both compose files.
 
-**Key Trade-off:** Direct deployments get one shared rate-limit bucket, so a global login failure ceiling (50 per 15 minutes) was added to bound guesses; this also lets an attacker temporarily lock out the owner. Dropped the `X-Real-IP` fallback rather than guess which hop set it.
+**Key Trade-off:** Direct deployments get one shared rate-limit bucket, so a global login failure ceiling (50 per 15 minutes, reserved before bcrypt and refunded on success) was added to bound guesses; this also lets an attacker temporarily lock out the owner. Dropped the `X-Real-IP` fallback rather than guess which hop set it.
 
 **Evidence:** Lint, typecheck, unit tests, coverage, and production build passed.
 
