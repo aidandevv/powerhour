@@ -206,3 +206,17 @@
 **Follow-ups:** Use pull requests to promote the fix branch into `dev`, then advance `dev` to `stable` and `stable` to `main` under the documented merge policy.
 
 ---
+
+### [CP-CONSTRAINT] | 2026-10-16: Client IP Trust Requires Explicit Proxy Count
+
+**Summary:** Rate-limit and audit identity now reads `X-Forwarded-For` only when `TRUSTED_PROXY_HOPS` is set, taking the entry that many hops from the right. Next.js 16 removed `NextRequest.ip` and only fills `X-Forwarded-For` from the socket when the header is absent, so with no proxy there is no trustworthy address and all clients share the `unknown` bucket.
+
+**Files/Modules Affected:** `lib/auth/client-ip.ts`, `lib/auth/rate-limit.ts`, `app/api/auth/login/route.ts`, `.env.example`, README, both compose files.
+
+**Key Trade-off:** Direct deployments get one shared rate-limit bucket, so a global login failure ceiling (50 per 15 minutes) was added to bound guesses; this also lets an attacker temporarily lock out the owner. Dropped the `X-Real-IP` fallback rather than guess which hop set it.
+
+**Evidence:** Lint, typecheck, unit tests, coverage, and production build passed.
+
+**Follow-ups:** Four routes (`change-password`, `plaid/institutions/[id]`, `sync`, `budget-goals/generate`) still read the first `X-Forwarded-For` entry directly and should switch to `getTrustedClientIp`.
+
+---
