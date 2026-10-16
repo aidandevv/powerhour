@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncAllInstitutions } from "@/lib/plaid/sync";
 import { maybeRegenerateBudgetGoals } from "@/lib/ai/budget-goals";
 import { syncRateLimiter } from "@/lib/auth/rate-limit";
+import { getTrustedClientIp } from "@/lib/auth/client-ip";
 import { apiError } from "@/lib/api/error";
 import { isDemoMode } from "@/lib/demo";
 
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = getTrustedClientIp(req.headers);
     try {
       await syncRateLimiter.consume(ip);
     } catch {
