@@ -6,6 +6,16 @@ const loginRateLimiter = new RateLimiterMemory({
   blockDuration: 15 * 60, // block for 15 minutes
 });
 
+// Shared across all clients so attempts that collapse into one bucket (or
+// rotate spoofed addresses) still have a hard ceiling on password guesses.
+const GLOBAL_LOGIN_FAILURE_POINTS = 50;
+const GLOBAL_LOGIN_KEY = "global";
+const globalLoginFailureLimiter = new RateLimiterMemory({
+  keyPrefix: "login-failures-global",
+  points: GLOBAL_LOGIN_FAILURE_POINTS, // 50 failed attempts
+  duration: 15 * 60, // per 15 minutes, across all clients
+});
+
 export const syncRateLimiter = new RateLimiterMemory({
   points: 3, // 3 syncs
   duration: 15 * 60, // per 15 minutes
@@ -30,5 +40,27 @@ export async function checkLoginRateLimit(ip: string): Promise<{
       allowed: false,
       retryAfterSeconds: Math.ceil((rej.msBeforeNext ?? 0) / 1000),
     };
+  }
+}
+
+export async function checkGlobalLoginFailureLimit(): Promise<{
+  allowed: boolean;
+  retryAfterSeconds?: number;
+}> {
+  const res = await globalLoginFailureLimiter.get(GLOBAL_LOGIN_KEY);
+  if (res && res.consumedPoints >= GLOBAL_LOGIN_FAILURE_POINTS) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.ceil(res.msBeforeNext / 1000),
+    };
+  }
+  return { allowed: true };
+}
+
+export async function recordGlobalLoginFailure(): Promise<void> {
+  try {
+    await globalLoginFailureLimiter.consume(GLOBAL_LOGIN_KEY);
+  } catch {
+    // Already at the ceiling; checkGlobalLoginFailureLimit reports the block.
   }
 }
