@@ -62,7 +62,7 @@ Aggregates spending, balances, and recurring expenses across all your financial 
 
 - **Encryption at rest** — Plaid access tokens encrypted with AES-256-GCM (random IV per encryption, separate auth tag)
 - **Database-layer isolation** — AI agent tools query PostgreSQL views that structurally exclude sensitive columns. Even a compromised prompt cannot access tokens.
-- **Layered rate limiting** — nginx (login), application middleware (all API routes), and per-endpoint limits (chat, report, budget planner)
+- **Layered rate limiting** — nginx (login), application middleware (all API routes), per-endpoint limits (chat, report, budget planner), and a global login-failure ceiling; client addresses come from `X-Forwarded-For` only when `TRUSTED_PROXY_HOPS` is configured
 - **Webhook verification** — Full JWK-based JWT signature + SHA-256 body hash verification for Plaid webhooks
 - **Audit log** — Records logins, password changes, institution links/deletes, and report downloads with IP and metadata
 - **HTTP headers** — HSTS, CSP with Plaid allowlist, X-Frame-Options DENY, strict referrer policy
@@ -151,6 +151,8 @@ For a quick demo install, choose `demo` in the wizard. It enables seeded fake da
 
 The release Compose file uses `POWERHOUR_IMAGE` and binds the app to `127.0.0.1:3000` by default. Put Caddy, nginx, Traefik, Cloudflare Tunnel, or another TLS reverse proxy in front of it for internet access. Set `POWERHOUR_HOST=0.0.0.0` only if you intentionally want Docker to bind directly on every network interface.
 
+When a reverse proxy sits in front of the app, set `TRUSTED_PROXY_HOPS` in `.env` to the number of proxies that set or append to `X-Forwarded-For` (usually `1`). The default `0` ignores forwarding headers entirely, because a client talking to the app directly can forge them; every client then shares one rate-limit bucket. Never set it higher than the real proxy count, or clients can choose their own rate-limit key.
+
 Useful release commands:
 
 ```bash
@@ -183,7 +185,7 @@ sudo certbot certonly --standalone -d finance.yourdomain.com
 docker compose -f docker/docker-compose.yml --profile tls up -d --build
 ```
 
-Update `docker/nginx/nginx.conf` with your certificate paths and server name. Auto-renewal:
+Update `docker/nginx/nginx.conf` with your certificate paths and server name, and set `TRUSTED_PROXY_HOPS=1` in `.env`. Auto-renewal:
 
 ```bash
 echo "0 3 * * * certbot renew --quiet --deploy-hook 'docker compose -f /opt/powerhour/docker/docker-compose.yml --profile tls restart nginx'" | sudo crontab -
