@@ -154,7 +154,7 @@ jobs:
         run: docker compose --env-file .env -f docker/docker-compose.yml config --quiet
 
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
