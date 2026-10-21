@@ -6,14 +6,15 @@ import { decrypt } from "@/lib/crypto";
 import { plaidClient } from "@/lib/plaid/client";
 import { apiError } from "@/lib/api/error";
 import { logAuditEvent } from "@/lib/audit-log";
+import { getTrustedClientIp } from "@/lib/auth/client-ip";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const { id } = await params;
+    const ip = getTrustedClientIp(req.headers);
 
     const [institution] = await db
       .select()

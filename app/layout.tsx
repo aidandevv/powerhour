@@ -4,7 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "powerhour",
-  description: "Personal finance dashboard",
+  description: "Self-hosted personal finance dashboard with Plaid sync, AI insights, budgeting, and PDF reports.",
 };
 
 const themeScript = `

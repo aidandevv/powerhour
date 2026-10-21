@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -14,17 +14,18 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 export default function ExpenseGroupDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const { data, mutate } = useSWR(
-    params.id ? `/api/expense-groups/${params.id}` : null,
+    id ? `/api/expense-groups/${id}` : null,
     fetcher
   );
 
   async function handleSuggestAdd(transactionIds: string[]) {
     if (transactionIds.length === 0) return;
-    await fetch(`/api/expense-groups/${params.id}/members`, {
+    await fetch(`/api/expense-groups/${id}/members`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ transactionIds }),
@@ -34,13 +35,13 @@ export default function ExpenseGroupDetailPage({
   }
 
   async function handleRemoveMember(transactionId: string) {
-    await fetch(`/api/expense-groups/${params.id}/members/${transactionId}`, {
+    await fetch(`/api/expense-groups/${id}/members/${transactionId}`, {
       method: "DELETE",
     });
     mutate();
   }
 
-  if (!data && !params.id) return null;
+  if (!data && !id) return null;
   if (data?.error) {
     return (
       <div className="p-6">

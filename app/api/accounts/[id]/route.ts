@@ -7,9 +7,10 @@ import { apiError } from "@/lib/api/error";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const [account] = await db
       .select({
         id: accounts.id,
@@ -27,7 +28,7 @@ export async function GET(
       })
       .from(accounts)
       .innerJoin(institutions, eq(accounts.institutionId, institutions.id))
-      .where(eq(accounts.id, params.id));
+      .where(eq(accounts.id, id));
 
     if (!account) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });

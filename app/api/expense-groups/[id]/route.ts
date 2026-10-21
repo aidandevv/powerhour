@@ -15,13 +15,14 @@ const updateSchema = z.object({
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const [group] = await db
       .select()
       .from(expenseGroups)
-      .where(eq(expenseGroups.id, params.id));
+      .where(eq(expenseGroups.id, id));
 
     if (!group) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
@@ -41,7 +42,7 @@ export async function GET(
       .from(expenseGroupMembers)
       .innerJoin(transactions, eq(expenseGroupMembers.transactionId, transactions.id))
       .innerJoin(accounts, eq(transactions.accountId, accounts.id))
-      .where(eq(expenseGroupMembers.groupId, params.id));
+      .where(eq(expenseGroupMembers.groupId, id));
 
     const totalAmount = members.reduce(
       (sum, m) => sum + parseFloat(String(m.amount)),
@@ -69,9 +70,10 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     let body: unknown;
     try {
       body = await req.json();
@@ -97,7 +99,7 @@ export async function PATCH(
     const [updated] = await db
       .update(expenseGroups)
       .set(updateData as Record<string, Date | string | null>)
-      .where(eq(expenseGroups.id, params.id))
+      .where(eq(expenseGroups.id, id))
       .returning();
 
     if (!updated) {
@@ -112,12 +114,13 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const [deleted] = await db
       .delete(expenseGroups)
-      .where(eq(expenseGroups.id, params.id))
+      .where(eq(expenseGroups.id, id))
       .returning({ id: expenseGroups.id });
 
     if (!deleted) {

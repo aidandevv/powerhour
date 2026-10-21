@@ -5,17 +5,14 @@
  * incorporates recurring expenses, and surfaces exactly 3 goals.
  */
 import { generateObject } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { and, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { budgetGoals, transactions } from "@/lib/db/schema";
 import { getSpendingSummary } from "@/lib/agent/tools/spending-summary";
 import { getRecurringExpenses } from "@/lib/agent/tools/recurring-expenses";
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+import { getAiTimeoutMs, getLanguageModel } from "@/lib/ai/model";
+import { PiiMasker } from "@/lib/agent/pii-masker";
 
 // ─── Zod schema for AI output ─────────────────────────────────────────────────
 
@@ -160,18 +157,28 @@ Generate exactly 3 SMART budget goals targeting the categories with the highest 
 export async function generateAndStoreBudgetGoals(profile?: BudgetProfile): Promise<void> {
   const { recentFrom, recentTo, priorFrom, priorTo } = dateRanges();
 
+  const masker = new PiiMasker();
   const [recent, prior, recurring] = await Promise.all([
     getSpendingSummary({ from: recentFrom, to: recentTo }),
     getSpendingSummary({ from: priorFrom, to: priorTo }),
     getRecurringExpenses(),
+    masker.seedFromDatabase(),
   ]);
 
-  const prompt = buildGoalsPrompt(
-    recent.summary,
-    prior.summary,
-    recurring.totalMonthlyEstimate,
-    recurring.items,
-    profile
+  // Recurring item names are merchant names; alias them before the prompt
+  // leaves the process and restore them in the generated goal text.
+  for (const item of recurring.items) {
+    masker.registerMerchant(item.name);
+  }
+
+  const prompt = masker.maskText(
+    buildGoalsPrompt(
+      recent.summary,
+      prior.summary,
+      recurring.totalMonthlyEstimate,
+      recurring.items,
+      profile
+    )
   );
 
   const tierInstruction = profile?.tier
@@ -179,7 +186,7 @@ export async function generateAndStoreBudgetGoals(profile?: BudgetProfile): Prom
     : TIER_SYSTEM_INSTRUCTIONS.balanced;
 
   const { object } = await generateObject({
-    model: google("gemini-2.5-flash-lite"),
+    model: getLanguageModel("goals"),
     schema: goalsOutputSchema,
     system:
       "You are a financial coach. Analyze spending data and create exactly 3 SMART budget goals. " +
@@ -189,7 +196,7 @@ export async function generateAndStoreBudgetGoals(profile?: BudgetProfile): Prom
       "Be specific, realistic, and brief in the rationale (2-3 sentences max). " +
       tierInstruction,
     prompt,
-    abortSignal: AbortSignal.timeout(30_000),
+    abortSignal: AbortSignal.timeout(getAiTimeoutMs("goals")),
   });
 
   // Persist: delete old 'suggested' goals, insert 3 new ones
@@ -199,11 +206,11 @@ export async function generateAndStoreBudgetGoals(profile?: BudgetProfile): Prom
     await tx.insert(budgetGoals).values(
       object.goals.map((g) => ({
         category: g.category,
-        categoryLabel: g.categoryLabel,
+        categoryLabel: masker.unmaskText(g.categoryLabel),
         targetType: g.targetType,
         monthlyTarget: String(g.monthlyTarget),
         baselineMonthlySpend: String(g.baselineMonthlySpend),
-        rationale: g.rationale,
+        rationale: masker.unmaskText(g.rationale),
         status: "suggested" as const,
       }))
     );

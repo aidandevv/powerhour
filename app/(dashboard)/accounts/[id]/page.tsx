@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAccount, useBalanceHistory } from "@/hooks/use-accounts";
 import { useTransactions } from "@/hooks/use-transactions";
 import { TransactionTable } from "@/components/transactions/transaction-table";
+import { asNumber } from "@/components/charts/formatters";
 import { formatCurrency } from "@/lib/utils";
 
 export default function AccountDetailPage() {
@@ -113,8 +114,8 @@ export default function AccountDetailPage() {
                   fontSize={12}
                 />
                 <Tooltip
-                  formatter={(value: number) => [
-                    formatCurrency(value),
+                  formatter={(value) => [
+                    formatCurrency(asNumber(value)),
                     "Balance",
                   ]}
                 />

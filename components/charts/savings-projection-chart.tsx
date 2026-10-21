@@ -16,6 +16,7 @@ import {
   projectedGoalDate,
 } from "@/lib/savings-projections";
 import { formatCurrency } from "@/lib/utils";
+import { asNumber } from "./formatters";
 
 interface SavingsProjectionChartProps {
   name: string;
@@ -80,8 +81,8 @@ export function SavingsProjectionChart({
               borderRadius: "var(--radius)",
             }}
             labelStyle={{ color: "hsl(var(--foreground))" }}
-            formatter={(value: number) => [
-              formatCurrency(value),
+            formatter={(value) => [
+              formatCurrency(asNumber(value)),
               "Saved",
             ]}
             labelFormatter={(_, payload) => {

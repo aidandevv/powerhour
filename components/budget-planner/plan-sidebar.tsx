@@ -96,15 +96,14 @@ export function PlanSidebar({ selectedId, onSelect, onNew, refreshKey }: PlanSid
         )}
 
         {Array.isArray(data) && data.map((plan) => (
-          <button
+          <div
             key={plan.id}
-            onClick={() => onSelect(plan)}
             className={cn(
               "w-full text-left px-4 py-3 group flex items-start gap-2 hover:bg-accent/60 transition-colors border-b border-border/30",
               selectedId === plan.id && "bg-accent"
             )}
           >
-            <div className="flex-1 min-w-0">
+            <button onClick={() => onSelect(plan)} className="flex-1 min-w-0 text-left">
               <p className="text-xs font-medium text-foreground truncate leading-snug">
                 {plan.title.slice(0, 40)}
                 {plan.title.length > 40 ? "…" : ""}
@@ -112,15 +111,15 @@ export function PlanSidebar({ selectedId, onSelect, onNew, refreshKey }: PlanSid
               <p className="text-xs text-muted-foreground mt-0.5">
                 {formatDate(plan.createdAt)}
               </p>
-            </div>
+            </button>
             <button
               onClick={(e) => handleDelete(e, plan.id)}
-              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-0.5 shrink-0 mt-0.5"
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-0.5 shrink-0 mt-0.5"
               title="Delete plan"
             >
               <Trash2 className="h-3 w-3" />
             </button>
-          </button>
+          </div>
         ))}
       </div>
     </div>

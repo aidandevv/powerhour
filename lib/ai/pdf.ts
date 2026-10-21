@@ -48,6 +48,7 @@ export interface PdfReportData {
   monthlyTrends: MonthlyTrend[];      // last 6 months
   topMerchants: MerchantSpend[];      // top 10 by spend in the report period
   narrative: string;                  // AI-generated summary paragraph(s)
+  localModelBeta?: boolean;
   anomalies: string[];                // Detected unusual charges
 }
 
@@ -523,7 +524,7 @@ function buildReport(doc: Doc, data: PdfReportData) {
 
   // ── 2. AI Narrative ─────────────────────────────────────────────────────────
 
-  sectionHeading(doc, "Summary");
+  sectionHeading(doc, data.localModelBeta ? "Summary - Local model (Beta)" : "Summary");
   doc
     .fontSize(10).font("Helvetica").fillColor(C_TEXT)
     .text(narrative, M, doc.y, { lineGap: 3, width: CONTENT_W });

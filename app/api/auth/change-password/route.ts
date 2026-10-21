@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { userSettings } from "@/lib/db/schema";
 import { apiError } from "@/lib/api/error";
 import { logAuditEvent } from "@/lib/audit-log";
+import { getTrustedClientIp } from "@/lib/auth/client-ip";
 
 const changeSchema = z
   .object({
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = changeSchema.safeParse(body);
     if (!parsed.success) {
-      const msg = parsed.error.errors[0]?.message ?? "Invalid input";
+      const msg = parsed.error.issues[0]?.message ?? "Invalid input";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = getTrustedClientIp(req.headers);
     await logAuditEvent("password_change", ip);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

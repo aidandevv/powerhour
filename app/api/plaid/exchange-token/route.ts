@@ -4,6 +4,7 @@ import { exchangePublicToken } from "@/lib/plaid/link";
 import { apiError } from "@/lib/api/error";
 import { isDemoMode } from "@/lib/demo";
 import { logAuditEvent } from "@/lib/audit-log";
+import { getTrustedClientIp } from "@/lib/auth/client-ip";
 
 const exchangeSchema = z.object({
   public_token: z.string().min(1),
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = getTrustedClientIp(req.headers);
     const institution = await exchangePublicToken(parsed.data.public_token);
     await logAuditEvent("institution_link", ip, { institutionId: institution.id, name: institution.institutionName });
     return NextResponse.json({ institution });

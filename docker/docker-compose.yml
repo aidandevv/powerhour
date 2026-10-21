@@ -5,12 +5,15 @@ services:
       dockerfile: docker/Dockerfile
     restart: unless-stopped
     env_file: ../.env
+    # Lets AI_BASE_URL point at a model server on the host (e.g. Ollama) on Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
     networks: [internal]
-    expose:
-      - "3000"
+    ports:
+      - "${POWERHOUR_HOST:-127.0.0.1}:${POWERHOUR_PORT:-3000}:3000"
 
   db:
     image: postgres:16-alpine
@@ -29,8 +32,11 @@ services:
       timeout: 5s
       retries: 5
 
+  # When this proxy is enabled, set TRUSTED_PROXY_HOPS=1 in ../.env so the app
+  # reads client addresses from the X-Forwarded-For header nginx sets.
   nginx:
     image: nginx:1.27-alpine
+    profiles: ["tls"]
     restart: unless-stopped
     ports:
       - "80:80"
@@ -38,7 +44,9 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on: [app]
+    depends_on:
+      app:
+        condition: service_healthy
     networks: [internal]
 
 volumes:

@@ -1,238 +1,141 @@
 # Contributing to powerhour
 
-Thank you for your interest in contributing. This guide covers the architecture, development setup, and conventions you need to know before submitting a pull request.
+Start with the [README](README.md#quick-start) for a working Node.js setup,
+PostgreSQL, migrations, and provider configuration. Use demo mode and synthetic
+data for development unless a task specifically requires real integrations.
 
----
+## Branch and pull request flow
 
-## Architecture overview
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  Browser (Next.js App Router — React client components)  │
-└────────────────────┬─────────────────────────────────────┘
-                     │ HTTPS (nginx TLS termination)
-┌────────────────────▼─────────────────────────────────────┐
-│  Next.js 14 App Router — Node.js runtime                 │
-│                                                          │
-│  /app/(auth)       — login page                          │
-│  /app/(dashboard)  — all protected pages                 │
-│  /app/api/         — API routes (server-side only)       │
-│                                                          │
-│  Two AI agents:                                          │
-│    Ticker           lib/agent/agent.ts        (chat)     │
-│    Budget Planner   lib/agent/budget-planner-agent.ts    │
-│                                                          │
-│  In-process scheduler  lib/scheduler.ts                  │
-│    – daily Plaid sync  (06:00)                           │
-│    – weekly digest     (Monday 08:00)                    │
-└────────────┬────────────────────────────┬────────────────┘
-             │                            │
-┌────────────▼────────┐    ┌─────────────▼──────────────┐
-│  PostgreSQL (Drizzle│    │  Plaid API                 │
-│  ORM, schema.ts)    │    │  (transactions, balances)  │
-└─────────────────────┘    └────────────────────────────┘
-```
-
-### Key directories
-
-| Path | Purpose |
-|---|---|
-| `app/(dashboard)/` | Protected pages (dashboard, transactions, subscriptions, …) |
-| `app/api/` | API routes — all server-side, never bundled to client |
-| `lib/agent/` | Agent executors + tool functions |
-| `lib/agent/tools/` | Individual tool implementations (pure async functions) |
-| `lib/db/` | Drizzle schema, migrations, DB client |
-| `lib/auth/` | Session, rate limiting, password helpers |
-| `lib/plaid/` | Plaid API wrappers (sync, link, webhooks) |
-| `lib/demo/` | Demo mode seed data |
-| `lib/digest/` | Weekly AI digest generator |
-| `components/` | React components |
-| `docker/` | Dockerfile, docker-compose, nginx config |
-| `scripts/` | Standalone cron alternative (optional) |
-
----
-
-## Local development
-
-### Prerequisites
-
-- Node.js 22+
-- Docker + Docker Compose (for PostgreSQL)
-- A Plaid account (or use demo mode — no Plaid required)
-- A Google AI Studio API key for the AI agent
-
-### Quick start
+Create a focused working branch from the current `dev` branch:
 
 ```bash
-# 1. Clone and install
-git clone https://github.com/your-username/powerhour.git
-cd powerhour
-npm install
-
-# 2. Copy and fill in environment variables
-cp .env.example .env
-# Edit .env — see comments for each variable
-
-# 3. For demo mode (no Plaid, no real data required):
-#    Set DEMO_MODE=true and NEXT_PUBLIC_DEMO_MODE=true in .env
-
-# 4. Start PostgreSQL
-docker compose -f docker/docker-compose.yml up db -d
-
-# 5. Run database migrations
-npx drizzle-kit migrate
-
-# 6. Start the dev server
-npm run dev
+git fetch origin
+git switch dev
+git pull --ff-only origin dev
+git switch -c feat/short-description
 ```
 
-The app runs at `http://localhost:3000`.
+Use lowercase kebab-case branches such as `feat/local-model-support` or
+`fix/session-expiry`. Use conventional commits, for example
+`fix(auth): reject expired sessions` or `docs: clarify database setup`.
 
-### Generating required secrets
+- Working branches target `dev` through a pull request and squash merge.
+- Promote `dev` to `stable`, then `stable` to `main`, through pull requests
+  using merge commits. `main` is the production source of truth.
+- Keep each pull request focused. Explain the problem, resulting behavior,
+  relevant validation, and material limitations.
+- Delete working branches after merge. Release tags use Semantic Versioning
+  and originate from `main`.
+
+Never commit secrets, local environment files, real financial data, generated
+coverage, browser artifacts, or machine-specific configuration.
+
+## Project structure
+
+| Path | Responsibility |
+| --- | --- |
+| `app/(auth)/` | Login flow. |
+| `app/(dashboard)/` | Protected dashboard pages. |
+| `app/api/` | Server-side API routes. |
+| `components/` | Shared UI, charts, chat, and planner components. |
+| `lib/agent/` | Agent prompts, tools, and PII masking. |
+| `lib/ai/` | Shared model configuration, reports, and budget goals. |
+| `lib/digest/` | Weekly digest generation and retrieval. |
+| `lib/db/` | Drizzle schema, query views, and SQL migrations. |
+| `lib/plaid/` | Financial provider integration and sync. |
+| `scripts/` | Setup, migrations, and maintenance commands. |
+| `tests/integration/` and `e2e/` | Database, model HTTP, and browser validation. |
+| `docker/` and `deploy/` | Source-build and release-image deployment layouts. |
+
+The app uses Next.js 16 and React 19. Read the installed Next.js documentation
+in `node_modules/next/dist/docs/` before changing framework-specific behavior;
+do not assume older Next.js conventions still apply.
+
+## Validation
+
+Run the delivery checks before submitting application changes:
 
 ```bash
-# Encryption key (AES-256-GCM for Plaid access tokens)
-openssl rand -hex 32
-
-# Session secret (iron-session)
-openssl rand -hex 64
-
-# Password hash (bcrypt, cost factor 12)
-node -e "const b=require('bcryptjs');b.hash('YOUR_PASSWORD',12).then(h=>console.log(h))"
+npm run lint
+npm run typecheck
+npm test
+npm run test:coverage
+npm run build
+npm audit --omit=dev --audit-level=high
 ```
 
----
+For browser behavior, also install Chromium and run `npm run test:e2e`.
+Database, container, workflow, and release changes also need a disposable
+database, validation of both Compose files, and a Docker image build where
+supported. Use [docs/TESTING.md](docs/TESTING.md) for exact setup and test tiers.
+Report skipped checks and failures explicitly; do not describe skipped database
+suites as passing integration coverage.
 
-## How to add a Ticker agent tool
+Add tests at the narrowest layer that exercises the behavior's actual risk.
+Authentication, encryption, financial calculations, Plaid verification, and
+access-control changes require focused coverage. Documentation-only changes
+should verify their commands, links, and implementation claims.
 
-The Ticker chat agent (`lib/agent/agent.ts`) exposes tools that let it query the database on behalf of the user. Adding a new tool is a four-step process:
+GitHub Actions runs application and container checks for pull requests and
+pushes to `dev`, `stable`, and `main`. Passing local checks does not replace CI.
 
-### Step 1 — Write the tool function
+## Implementation conventions
 
-Create `lib/agent/tools/your-tool-name.ts`:
+- Keep TypeScript strict; avoid unchecked casts and unvalidated external input.
+- Use existing UI components, tokens, and accessibility patterns. Handle
+  loading, empty, error, and streaming states where relevant.
+- Keep secrets and database access server-side. Never prefix credentials with
+  `NEXT_PUBLIC_`.
+- Use the shared model factory in `lib/ai/model.ts` for AI features. Preserve
+  per-feature overrides, limits, name masking, and provider-aware beta labels.
+- Keep **all five local-model features tagged Beta**, including generated
+  report summaries and stored digests. Provider configuration status must not
+  imply that connectivity or response quality has been verified.
+- Follow existing tools in `lib/agent/tools/`; use descriptive snake_case tool
+  names, validated inputs, bounded queries, and the appropriate query views.
+  Tools that persist changes need an explicit user-confirmation flow.
+- Keep financial calculations in testable server modules. Handle currency,
+  rounding, dates, and empty datasets consistently with existing helpers.
+- Review dependency additions for necessity, licensing, and deployment impact.
 
-```typescript
-// lib/agent/tools/my-tool.ts
-import { db } from "@/lib/db";
-import { transactions } from "@/lib/db/schema";
+Local models use Chat Completions. Test multi-step tool responses and structured
+output compatibility against the shared fixtures before relying on a particular
+installed model. A smoke test demonstrates compatibility, not financial
+correctness or answer quality.
 
-export interface MyToolResult {
-  // ...
-}
+## Database changes
 
-export async function myTool(params: { someParam: string }): Promise<MyToolResult> {
-  // Query the DB — use the agent_accounts_view for account data
-  // (it excludes sensitive columns like plaid_access_token)
-  const rows = await db.select(/* ... */);
-  return { /* ... */ };
-}
+Keep `lib/db/schema.ts`, SQL migrations in `lib/db/migrations/`, and the
+fresh-install bootstrap in `scripts/migrate.mjs` aligned. The project migration
+runner maintains its own `powerhour_migrations` ledger; do not mix migration
+runners against the same database.
+
+`npm run db:generate` can generate a migration for review when `DATABASE_URL`
+is supplied in the process environment. Inspect the SQL, include any necessary
+view updates, and test both an empty installation and an upgrade from the
+previous schema. Never edit an already applied migration.
+
+Use the project runner for installation and upgrades:
+
+```bash
+node --env-file=.env scripts/migrate.mjs
 ```
 
-**Rules:**
-- Tool functions are pure async functions — no side effects beyond DB reads
-- Use `agent_accounts_view` / `agent_institutions_view` for account data (defined in `lib/db/views.ts`)
-- Write functions; the `tool()` wrapper lives in `agent.ts`
-- Return a plain serializable object
+The runner and Drizzle CLI commands do not automatically load `.env`. Do not use
+`db:push` as a substitute for reviewing and validating a migration intended
+for deployment. Back up data before applying changes to a persistent instance.
 
-### Step 2 — Register the tool in agent.ts
+## Documentation and security
 
-```typescript
-// lib/agent/agent.ts
-import { myTool } from "./tools/my-tool";
+Update the README and relevant guides when configuration, setup, feature
+status, privacy behavior, or deployment requirements change. Keep examples
+consistent with `.env.example` and the actual scripts and Compose layouts.
 
-const agentTools = {
-  // ... existing tools
-  myTool: tool({
-    description: "One sentence: when should the agent call this? Include trigger phrases.",
-    inputSchema: z.object({
-      someParam: z.string().describe("What this param does"),
-    }),
-    execute: async (params) => myTool(params),
-  }),
-};
-```
+For security-sensitive changes, consider the full data path: session checks,
+trusted proxy configuration, validation, encryption, AI prompts, logs, and
+provider requests. Query views and name masking reduce exposure but are not
+complete isolation or anonymization guarantees. Use synthetic examples when
+reporting issues and exclude secrets and financial records from public reports.
 
-The description is the LLM's only signal for when to call your tool — write it like a docstring for a non-technical reader.
-
-### Step 3 — Add a tool badge label
-
-```typescript
-// components/chat/tool-call-badge.tsx
-const TOOL_LABELS: Record<string, string> = {
-  // ...
-  myTool: "Doing my thing",
-};
-```
-
-### Step 4 — (Optional) Custom rendering
-
-If your tool returns data that should render as something other than a loading badge, add a case to `components/chat/chat-message.tsx` similar to how `generateReport` renders a download button.
-
----
-
-## Database migrations
-
-This project uses Drizzle ORM with manual SQL migrations (not auto-generated).
-
-### Adding a new table
-
-1. Add the table definition to `lib/db/schema.ts`
-2. Create `lib/db/migrations/000N_description.sql` with the SQL DDL
-3. Add an entry to `lib/db/migrations/meta/_journal.json`
-4. Run `npx drizzle-kit migrate` locally to apply
-
-### Migration file format
-
-```sql
-CREATE TABLE "my_table" (
-  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-  "name" text NOT NULL,
-  "created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE INDEX "idx_my_table_name" ON "my_table" ("name");
-```
-
----
-
-## Security conventions
-
-- **Never use `NEXT_PUBLIC_` prefix for secrets.** Variables prefixed `NEXT_PUBLIC_` are baked into the client JS bundle.
-- **Plaid access tokens are encrypted** with AES-256-GCM at rest (`lib/crypto.ts`). Do not store them plaintext.
-- **Agent tools query DB views**, not base tables, to prevent accidental leakage of sensitive columns.
-- **All mutations are logged** to the `audit_log` table via `lib/audit-log.ts`.
-- **Rate limiting is layered**: nginx (login) + in-process `RateLimiterMemory` per endpoint.
-- **Session expiry is 8 hours** (iron-session). There is no server-side session store; logout destroys the client cookie.
-
----
-
-## Pull request guidelines
-
-1. **Fork and branch** — create a feature branch from `main` (`feat/my-feature` or `fix/my-bug`)
-2. **Keep PRs focused** — one feature or fix per PR makes review tractable
-3. **Match existing patterns** — read a similar file before writing a new one
-4. **No new dependencies without discussion** — open an issue first for significant new packages
-5. **TypeScript strict** — the project uses `strict: true`; no `any` without a comment explaining why
-6. **Test your changes** — manual testing at minimum; describe how you tested in the PR description
-
-### Commit style
-
-```
-feat: add anomaly detection tool to Ticker agent
-fix: prevent sync loop hanging on malformed Plaid cursor
-chore: update drizzle-orm to 0.36
-```
-
----
-
-## Demo mode
-
-Set `DEMO_MODE=true` and `NEXT_PUBLIC_DEMO_MODE=true` in `.env` to run the full app with realistic fake data — no Plaid account required. The seed runs automatically on startup via `instrumentation.ts`.
-
-This is the recommended way to develop and test UI changes without live bank data.
-
----
-
-## Questions?
-
-Open an issue for bugs or feature requests. For larger architectural changes, open a discussion first.
+The project uses the [ISC license](LICENSE). Follow the
+[font policy](docs/FONTS.md) when adding assets.
