@@ -34,7 +34,7 @@ Aggregates spending, balances, and recurring expenses across all your financial 
 | Framework | Next.js 14 (App Router, Server Components) |
 | Language | TypeScript (strict mode) |
 | Database | PostgreSQL 16 via Drizzle ORM |
-| AI | Gemini 2.5 Flash Lite via Vercel AI SDK v6 |
+| AI | Gemini 2.5 Flash Lite via Vercel AI SDK v6 (local OpenAI-compatible models optional) |
 | Auth | iron-session (encrypted httpOnly cookies, 8-hour expiry) |
 | Financial data | Plaid API (transactions, balances, recurring detection, webhooks) |
 | Styling | Tailwind CSS + shadcn/ui |
@@ -76,7 +76,7 @@ Aggregates spending, balances, and recurring expenses across all your financial 
 - Node.js 22+
 - Docker Engine with Docker Compose v2 (`docker compose`)
 - A [Plaid developer account](https://dashboard.plaid.com) for real bank syncs
-- A [Google AI Studio API key](https://aistudio.google.com/app/apikey) for AI chat, reports, and budget planning
+- A [Google AI Studio API key](https://aistudio.google.com/app/apikey) for AI chat, reports, and budget planning, or a local OpenAI-compatible model server (see [Local models](#local-models-beta))
 
 Plaid and Gemini are optional for demo mode. Demo mode seeds fake data and is the fastest way to verify the app before connecting real accounts.
 
@@ -108,6 +108,44 @@ Open [http://localhost:3000](http://localhost:3000) and log in with your passwor
 ### Demo mode
 
 To run without Plaid credentials, set `DEMO_MODE=true` and `NEXT_PUBLIC_DEMO_MODE=true` in `.env`. The app seeds realistic fake data on startup — two institutions, four accounts, 6 months of transactions, recurring items, budget goals, and savings targets.
+
+### Local models (Beta)
+
+AI features use Gemini by default. Set `AI_PROVIDER=openai-compatible` to use a local model server that speaks the OpenAI Chat Completions API instead: [Ollama](https://ollama.com), the llama.cpp server, or LM Studio. All five local-model features are **Beta**: Ticker, Budget Planner, PDF report summaries, smart budget goals, and weekly AI digests. Their frontend entry points display beta badges; Settings → AI models shows each configured model. `GEMINI_API_KEY` is then not needed. PII masking for the chat and budget planner agents stays on for every provider.
+
+```bash
+AI_PROVIDER=openai-compatible
+AI_BASE_URL=http://localhost:11434/v1   # Ollama
+AI_MODEL=qwen3:8b                       # any tool-calling model the server has loaded
+# Optional: a different model per feature
+# AI_MODEL_CHAT=  AI_MODEL_PLANNER=  AI_MODEL_DIGEST=  AI_MODEL_REPORT=  AI_MODEL_GOALS=
+# Optional overrides (these are the local-model Beta defaults)
+AI_CHAT_TIMEOUT_MS=300000
+AI_PLANNER_TIMEOUT_MS=600000
+AI_DIGEST_TIMEOUT_MS=180000
+AI_REPORT_TIMEOUT_MS=180000
+AI_GOALS_TIMEOUT_MS=180000
+```
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `AI_PROVIDER` | `google` | `google` or `openai-compatible` |
+| `AI_MODEL` | `gemini-2.5-flash-lite` (google) | Model id; required for `openai-compatible` |
+| `AI_MODEL_<FEATURE>` | `AI_MODEL` | Per-feature override: `CHAT`, `PLANNER`, `DIGEST`, `REPORT`, `GOALS` |
+| `AI_BASE_URL` | — | Endpoint ending in `/v1`; required for `openai-compatible` |
+| `AI_API_KEY` | — | Optional bearer token for the endpoint |
+| `AI_STRUCTURED_OUTPUTS` | `true` | Set `false` if the server rejects `json_schema` response formats |
+| `AI_CHAT_MAX_STEPS` / `AI_CHAT_TIMEOUT_MS` | `8` / `90000` | Ticker agent limits |
+| `AI_PLANNER_MAX_STEPS` / `AI_PLANNER_TIMEOUT_MS` | `16` / `120000` | Budget planner limits |
+| `AI_DIGEST_TIMEOUT_MS` / `AI_REPORT_TIMEOUT_MS` / `AI_GOALS_TIMEOUT_MS` | `30000` / `15000` / `30000` | Single-call timeouts |
+
+The limit table shows hosted defaults. Local-model Beta defaults allow 300 seconds for Ticker, 600 seconds for Budget Planner, and 180 seconds for each single-call feature. Explicit timeout variables override either provider's defaults.
+
+**Context window.** The agent system prompts and 24 tool schemas need far more than Ollama's default context window, and Ollama silently truncates prompts that overflow it. The OpenAI-compatible endpoint cannot set `num_ctx` per request, so set it on the server: start Ollama with `OLLAMA_CONTEXT_LENGTH=16384 ollama serve`, or create a model variant with `PARAMETER num_ctx 16384` in a Modelfile.
+
+**Docker on macOS.** Run Ollama natively on the host, not in a container: Docker on macOS has no access to the Metal GPU, so a containerized model runs on the CPU only. Point the app container at the host with `AI_BASE_URL=http://host.docker.internal:11434/v1`. Both Compose files map `host.docker.internal` to the host gateway, so the same URL also works on Linux. On Linux, Ollama must listen on an address the container can reach (for example `OLLAMA_HOST=0.0.0.0`; firewall it from the network).
+
+**Quality.** Local-model compatibility and tool selection vary by model. All five integrations are Beta. Smoke checks establish that the features run; they do not establish answer quality or financial accuracy. Review generated outputs before using them.
 
 ---
 
@@ -213,9 +251,9 @@ For source deployments, add `-f docker/docker-compose.yml` to the backup and res
 
 ### AI agents
 
-**Ticker** (`lib/agent/agent.ts`) — ReAct agent with 15 tools, 8-step iteration cap, 30-second timeout. Tools query spending summaries, account balances, transactions, recurring expenses, cash flow forecasts, anomalies, debt payoff timelines, and more. Streams responses via SSE.
+**Ticker** (`lib/agent/agent.ts`) — ReAct agent with 24 tools, 8-step iteration cap, 90-second timeout (both configurable). Tools query spending summaries, account balances, transactions, recurring expenses, cash flow forecasts, anomalies, debt payoff timelines, and more. Streams responses via SSE.
 
-**Budget Planner** (`lib/agent/budget-planner-agent.ts`) — 16-step cap, 120-second timeout. Supports web search via Google Grounding. Three intent-detected modes with distinct tool sets and conversation flows.
+**Budget Planner** (`lib/agent/budget-planner-agent.ts`) — 16-step cap, 120-second timeout (both configurable). Supports web search via Google Grounding. Three intent-detected modes with distinct tool sets and conversation flows.
 
 ### Plaid integration
 

@@ -16,6 +16,23 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       DASHBOARD_PASSWORD_HASH: ${DASHBOARD_PASSWORD_HASH:?DASHBOARD_PASSWORD_HASH is required}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-google}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_STRUCTURED_OUTPUTS: ${AI_STRUCTURED_OUTPUTS:-}
+      AI_MODEL_CHAT: ${AI_MODEL_CHAT:-}
+      AI_MODEL_PLANNER: ${AI_MODEL_PLANNER:-}
+      AI_MODEL_DIGEST: ${AI_MODEL_DIGEST:-}
+      AI_MODEL_REPORT: ${AI_MODEL_REPORT:-}
+      AI_MODEL_GOALS: ${AI_MODEL_GOALS:-}
+      AI_CHAT_MAX_STEPS: ${AI_CHAT_MAX_STEPS:-}
+      AI_CHAT_TIMEOUT_MS: ${AI_CHAT_TIMEOUT_MS:-}
+      AI_PLANNER_MAX_STEPS: ${AI_PLANNER_MAX_STEPS:-}
+      AI_PLANNER_TIMEOUT_MS: ${AI_PLANNER_TIMEOUT_MS:-}
+      AI_DIGEST_TIMEOUT_MS: ${AI_DIGEST_TIMEOUT_MS:-}
+      AI_REPORT_TIMEOUT_MS: ${AI_REPORT_TIMEOUT_MS:-}
+      AI_GOALS_TIMEOUT_MS: ${AI_GOALS_TIMEOUT_MS:-}
       DEMO_MODE: ${DEMO_MODE:-false}
       NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-false}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
@@ -24,6 +41,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Lets AI_BASE_URL point at a model server on the host (e.g. Ollama) on Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${POWERHOUR_HOST:-127.0.0.1}:${POWERHOUR_PORT:-3000}:3000"
     networks: [internal]

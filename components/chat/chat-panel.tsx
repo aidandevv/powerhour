@@ -12,6 +12,7 @@ import { ChatMessage } from "./chat-message";
 import { TypingIndicator } from "./typing-indicator";
 import { MessageCircle, X, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AiFeatureBadge } from "@/components/ai/provider-status";
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -108,6 +109,7 @@ export function ChatPanel({ variant = "floating", onClose, showClose = true, sho
           >
             Ticker
           </span>
+          <AiFeatureBadge feature="chat" />
         </div>
         {showClose && onClose ? (
           <Button

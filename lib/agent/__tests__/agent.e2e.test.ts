@@ -31,9 +31,10 @@ vi.mock("ai", async () => {
   };
 });
 
-vi.mock("@ai-sdk/google", () => ({
-  createGoogleGenerativeAI: vi.fn(() => vi.fn(() => "mock-model")),
-}));
+vi.mock("@/lib/ai/model", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/ai/model")>("@/lib/ai/model");
+  return { ...actual, getLanguageModel: vi.fn(() => "mock-model") };
+});
 
 vi.mock("../prompt", () => ({
   buildSystemPrompt: vi.fn(() => "system prompt"),
@@ -177,6 +178,8 @@ describe("runAgent PII e2e", () => {
     ]);
 
     const streamOptions = streamTextMock.mock.calls[0][0];
+    expect(streamOptions.model).toBe("mock-model");
+    expect(streamOptions.stopWhen).toBe(8);
     const toolResult = await streamOptions.tools.search_transactions.execute(
       { query: "Merchant-1" },
       undefined

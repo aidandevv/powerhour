@@ -24,11 +24,11 @@
     "db:studio": "drizzle-kit studio",
     "db:ensure-views": "node scripts/ensure-views.mjs",
     "prepare": "husky",
-    "test": "vitest run --exclude e2e/**",
-    "test:watch": "vitest --exclude e2e/**",
-    "test:unit": "vitest run --exclude tests/integration/** --exclude e2e/**",
+    "test": "vitest run --exclude 'e2e/**'",
+    "test:watch": "vitest --exclude 'e2e/**'",
+    "test:unit": "vitest run --exclude 'tests/integration/**' --exclude 'e2e/**'",
     "test:integration": "vitest run tests/integration",
-    "test:coverage": "vitest run --exclude e2e/** --coverage",
+    "test:coverage": "vitest run --exclude 'e2e/**' --coverage",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "test:ci": "npm run test:coverage && npm run test:e2e"
@@ -46,6 +46,7 @@
   "type": "module",
   "dependencies": {
     "@ai-sdk/google": "^3.0.80",
+    "@ai-sdk/openai-compatible": "^2.0.54",
     "@ai-sdk/react": "^3.0.199",
     "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-dropdown-menu": "^2.1.17",

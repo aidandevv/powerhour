@@ -13,8 +13,9 @@ const {
 }));
 
 vi.mock("ai", () => ({ generateObject: generateObjectMock }));
-vi.mock("@ai-sdk/google", () => ({
-  createGoogleGenerativeAI: () => (modelId: string) => ({ modelId }),
+vi.mock("@/lib/ai/model", () => ({
+  getLanguageModel: (feature: string) => ({ modelId: `test-${feature}` }),
+  getAiTimeoutMs: () => 180_000,
 }));
 vi.mock("@/lib/agent/tools/spending-summary", () => ({
   getSpendingSummary: getSpendingSummaryMock,

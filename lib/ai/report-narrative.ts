@@ -6,16 +6,12 @@
  * the narrative is rendered.
  */
 import { generateText } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { getAiTimeoutMs, getLanguageModel } from "@/lib/ai/model";
 import { PiiMasker } from "@/lib/agent/pii-masker";
 import type { MonthlyTrend, MerchantSpend } from "@/lib/ai/pdf";
 import type { SpendingSummaryResult } from "@/lib/agent/tools/spending-summary";
 import type { AccountBalancesResult } from "@/lib/agent/tools/account-balances";
 import type { RecurringExpensesResult } from "@/lib/agent/tools/recurring-expenses";
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
 
 export interface ReportNarrativeInput {
   from: string;
@@ -35,13 +31,13 @@ export async function generateReportNarrative(input: ReportNarrativeInput): Prom
   }
 
   const { text } = await generateText({
-    model: google("gemini-2.5-flash-lite"),
+    model: getLanguageModel("report"),
     system:
       "You are a financial data analyst. Write a concise 2-3 paragraph summary of the " +
       "user's financial data. Focus on notable patterns, top categories, net worth, and " +
       "monthly trends. Do NOT give financial advice. Be factual and data-driven.",
     prompt: masker.maskText(buildNarrativePrompt(input)),
-    abortSignal: AbortSignal.timeout(15_000),
+    abortSignal: AbortSignal.timeout(getAiTimeoutMs("report")),
   });
 
   return masker.unmaskText(text);

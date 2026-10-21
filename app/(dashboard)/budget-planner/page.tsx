@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { AiFeatureBadge } from "@/components/ai/provider-status";
 import { Button } from "@/components/ui/button";
 import { MapPin } from "lucide-react";
 import { PlannerChat } from "@/components/budget-planner/planner-chat";
@@ -50,12 +50,7 @@ export default function BudgetPlannerPage() {
             <div className="flex items-center gap-3 min-w-0">
               <MapPin className="h-5 w-5 text-primary shrink-0" />
               <h1 className="text-lg font-semibold text-foreground whitespace-nowrap">Budget Planner</h1>
-              <Badge
-                variant="secondary"
-                className="text-xs bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
-              >
-                Beta
-              </Badge>
+              <AiFeatureBadge feature="planner" alwaysBeta />
               {selectedPlan && (
                 <span className="text-sm text-muted-foreground truncate ml-2">
                   — {selectedPlan.title.slice(0, 60)}

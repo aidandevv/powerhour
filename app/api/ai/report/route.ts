@@ -2,7 +2,7 @@
  * PDF Report Generation API
  *
  * PDF-01: Dashboard button triggers this endpoint
- * PDF-03: AI-generated narrative via Gemini
+ * PDF-03: AI-generated narrative via the configured LLM
  * PDF-05: Chat agent can also trigger report generation
  * PDF-06: No files written to disk — binary buffer response
  *
@@ -22,6 +22,7 @@ import {
   type MonthlyTrend,
   type MerchantSpend,
 } from "@/lib/ai/pdf";
+import { resolveProvider } from "@/lib/ai/model";
 import { generateReportNarrative } from "@/lib/ai/report-narrative";
 import type { SpendingSummaryResult } from "@/lib/agent/tools/spending-summary";
 import { apiError } from "@/lib/api/error";
@@ -96,6 +97,7 @@ export async function POST(req: Request) {
       monthlyTrends,
       topMerchants,
       narrative,
+      localModelBeta: resolveProvider() === "openai-compatible",
       anomalies,
     });
 

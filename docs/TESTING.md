@@ -33,6 +33,25 @@ TEST_DATABASE_URL=postgresql://finance_app:finance_app@127.0.0.1:5432/powerhour_
 - `tests/integration` — a real migrated PostgreSQL database, including schema constraints and security views.
 - `e2e` — Playwright browser flows against deterministic demo data. Plaid and Gemini are never called.
 
+## Local model Beta validation
+
+Ticker, Budget Planner, report summaries, smart budget goals, and weekly digests share the same provider configuration. Local-model entry points show **Beta**, and Settings → AI models lists their per-feature model selections. Report summaries and saved digests retain a beta marker.
+
+`tests/integration/local-model.test.ts` uses the real AI SDK against a deterministic OpenAI-compatible HTTP server. It checks server failures and timeouts without credentials. With `TEST_DATABASE_URL`, it also exercises both streaming agents and their tool follow-ups, goal validation/persistence with and without structured outputs, real PDF generation, and saved digests. Database suites run serially to prevent concurrent truncation.
+
+Playwright starts its own model fixture and tests all beta surfaces, streaming chat/planner, goal regeneration, PDF downloads, and authenticated provider metadata. It needs the migrated disposable database described above. No installed model or external AI service is needed for these repeatable checks.
+
+To smoke test an installed model with synthetic data, explicitly opt in:
+
+```bash
+TEST_DATABASE_URL=postgresql://finance_app:finance_app@127.0.0.1:5432/powerhour_test \
+  LOCAL_MODEL_SMOKE_URL=http://127.0.0.1:11434/v1 \
+  LOCAL_MODEL_SMOKE_ID=your-installed-model \
+  npx vitest run tests/integration/local-model.live.test.ts
+```
+
+The live smoke suite skips unless all three variables are supplied. It checks real tool execution and readable responses for both agents, three schema-valid goals, a PDF, and a stored digest. It allows three minutes per generation; this is a compatibility smoke check, not an answer-quality evaluation.
+
 ## CI evidence
 
 Pull requests produce LCOV/HTML coverage, JUnit results, and Playwright failure traces, screenshots, and videos. The suite begins by publishing an honest full-source coverage baseline; once that baseline has run on the default branch, set no-regression and critical-path thresholds rather than an arbitrary repository-wide percentage.
