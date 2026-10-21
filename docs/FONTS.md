@@ -1,13 +1,5 @@
 # Font Attribution
 
-This repository includes the following font families in `public/fonts/`:
+This repository does not ship proprietary font binaries. The app uses system font stacks by default so the source distribution can remain cleanly covered by the ISC license.
 
-- PP Mori
-- PP Kyoto
-
-Source and licensing:
-
-- PP Mori: https://pangrampangram.com/products/mori
-- PP Kyoto: https://pangrampangram.com/products/pp-kyoto
-
-These fonts are not open source by default. If you redistribute this project or deploy a derivative publicly, ensure your usage complies with the original font licensing terms from Pangram Pangram.
+If you customize a deployment with commercial fonts, keep those files out of the public repository unless their license explicitly permits redistribution.

@@ -65,7 +65,7 @@ Thank you for your interest in contributing. This guide covers the architecture,
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/your-username/powerhour.git
+git clone https://github.com/<owner>/powerhour.git
 cd powerhour
 npm install
 
@@ -214,6 +214,15 @@ CREATE INDEX "idx_my_table_name" ON "my_table" ("name");
 4. **No new dependencies without discussion** — open an issue first for significant new packages
 5. **TypeScript strict** — the project uses `strict: true`; no `any` without a comment explaining why
 6. **Test your changes** — manual testing at minimum; describe how you tested in the PR description
+
+### Automated checks
+
+Pull requests to `main` run GitHub Actions for linting, type checking,
+coverage, real PostgreSQL integration tests, demo-mode browser smoke tests,
+production dependency audit, Next.js build, Docker image build, and Compose
+file validation. Read [docs/TESTING.md](./docs/TESTING.md) before adding a test
+that requires database state. Release tags (`v*.*.*`) repeat the app checks
+before publishing a multi-architecture GHCR image and release assets.
 
 ### Commit style
 

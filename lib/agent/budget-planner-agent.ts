@@ -23,6 +23,12 @@ import { getAccountBalances } from "./tools/account-balances";
 import { getRecurringExpenses } from "./tools/recurring-expenses";
 import { createSingleBudgetGoal } from "@/lib/ai/budget-goals";
 import { performWebSearch } from "./tools/web-search";
+import type { PiiMasker } from "./pii-masker";
+import {
+  createPiiTransform,
+  maskUserMessages,
+  wrapToolsWithMasker,
+} from "./pii-transform";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -245,92 +251,159 @@ export interface BudgetPlannerOptions {
   };
 }
 
+const PRIVATE_FINANCE_QUERY_PATTERNS = [
+  /\bmy\s+(?:account|accounts|balance|balances|transaction|transactions|spending|subscription|subscriptions|merchant|merchants|income|net\s*worth|credit\s*card|checking|savings)\b/i,
+  /\b(?:account|balance|transaction|subscription|recurring expense|net worth)\s+(?:data|history|details|amounts?)\b/i,
+  /\b(?:chase|amex|american express|capital one|wells fargo|bank of america|citi|citibank)\s+(?:account|checking|savings|card|balance)\b/i,
+];
+
+export function validatePublicWebSearchQuery(
+  query: string,
+  privateFinanceToolsUsed: boolean
+): { allowed: true } | { allowed: false; reason: string } {
+  const trimmedQuery = query.trim();
+
+  if (privateFinanceToolsUsed) {
+    return {
+      allowed: false,
+      reason:
+        "Web search is disabled after private finance data has been accessed in this planner session.",
+    };
+  }
+
+  if (trimmedQuery.length === 0 || trimmedQuery.length > 240) {
+    return {
+      allowed: false,
+      reason: "Web search queries must be between 1 and 240 characters.",
+    };
+  }
+
+  if (PRIVATE_FINANCE_QUERY_PATTERNS.some((pattern) => pattern.test(trimmedQuery))) {
+    return {
+      allowed: false,
+      reason: "Web search queries cannot include private account, balance, transaction, or merchant data.",
+    };
+  }
+
+  return { allowed: true };
+}
+
+function blockedWebSearchResult(query: string, reason: string) {
+  return {
+    query,
+    results: [],
+    summary: reason,
+  };
+}
+
 export async function runBudgetPlannerAgent(
   messages: UIMessage[],
-  options?: BudgetPlannerOptions
+  options?: BudgetPlannerOptions,
+  masker?: PiiMasker
 ) {
-  const modelMessages = await convertToModelMessages(messages);
+  const preparedMessages = masker ? maskUserMessages(messages, masker) : messages;
+  const modelMessages = await convertToModelMessages(preparedMessages);
   const systemPrompt = buildSystemPrompt(options?.budgetContext);
+  let privateFinanceToolsUsed = false;
+
+  const markPrivateFinanceAccess = <TArgs extends unknown[], TResult>(
+    fn: (...args: TArgs) => TResult
+  ) => {
+    return (...args: TArgs): TResult => {
+      privateFinanceToolsUsed = true;
+      return fn(...args);
+    };
+  };
+
+  const plannerTools = {
+    web_search: tool({
+      description:
+        "Search the web for travel information, costs, and recommendations. Use for researching flights, hotels, activities, food costs, and other trip planning needs. Returns search results with titles, links, and snippets.",
+      inputSchema: z.object({
+        query: z.string().describe("The search query, e.g. 'round trip flights to Tokyo May 2026' or 'average hotel cost Paris'"),
+      }),
+      execute: async (params) => {
+        const policy = validatePublicWebSearchQuery(params.query, privateFinanceToolsUsed);
+        if (!policy.allowed) {
+          return blockedWebSearchResult(params.query, policy.reason);
+        }
+
+        return performWebSearch(params);
+      },
+    }),
+    savings_projection: tool({
+      description:
+        "Compute how long it takes to reach a savings goal, or how much to save per month for a target date. Use when the user asks about saving for a trip or a general savings goal.",
+      inputSchema: z.object({
+        targetAmount: z.number().positive().describe("Target amount in dollars"),
+        monthlyAmount: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Monthly savings amount - use when user says '$X/month'"),
+        targetDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe("Target date YYYY-MM-DD - use when user says 'by [date]' or 'in N months'"),
+      }),
+      execute: async (params) => computeSavingsProjection(params),
+    }),
+    create_savings_target: tool({
+      description:
+        "Create a savings target on the user's dashboard. Use this ONLY after the user explicitly confirms they want to save the goal (they say yes, sure, please create it, do it, etc.). Do NOT call this proactively — always show the plan with savings_projection first and ask for confirmation.",
+      inputSchema: z.object({
+        name: z
+          .string()
+          .max(200)
+          .describe("Short descriptive name for the target, e.g. 'Savings goal – May 2026' or 'Emergency fund'"),
+        targetAmount: z.number().positive().describe("Target amount in dollars"),
+        targetDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe("Target date YYYY-MM-DD (use last day of the target month when a month is specified)"),
+      }),
+      execute: async (params) => createSavingsTargetRecord(params),
+    }),
+    get_spending_insights: tool({
+      description:
+        "Get the user's spending habits: spending by category (last 3 months), recurring expenses/subscriptions, and flagged items with no recent activity. Use when the user asks how to cut spending, reduce expenses, or save money.",
+      inputSchema: z.object({}),
+      execute: markPrivateFinanceAccess(async () => getSpendingInsights()),
+    }),
+    create_budget_goal: tool({
+      description:
+        "Add a smart budget goal (spending cap) on the user's dashboard. Use ONLY after the user confirms they want to add it. Requires category, monthly target, and rationale from get_spending_insights data.",
+      inputSchema: z.object({
+        category: z.string().describe("Plaid category code, e.g. FOOD_AND_DRINK"),
+        categoryLabel: z.string().describe("Human-friendly label, e.g. Dining & restaurants"),
+        targetType: z.enum(["cap", "percent_reduction", "savings"]).describe("Use 'cap' for monthly spending limit"),
+        monthlyTarget: z.number().positive().describe("Target monthly spend in dollars"),
+        baselineMonthlySpend: z.number().positive().describe("User's current monthly average for this category"),
+        rationale: z.string().max(300).describe("1-2 sentence explanation of the goal"),
+      }),
+      execute: async (params) => createSingleBudgetGoal(params),
+    }),
+    get_account_balances: tool({
+      description:
+        "Get current balances for all linked bank accounts (checking, savings, credit, investment). Returns totalAssets, totalLiabilities, and netWorth. Use in Savings Goal Mode to determine how much the user already has saved so the projection accounts for their current balance.",
+      inputSchema: z.object({}),
+      execute: markPrivateFinanceAccess(async () => getAccountBalances()),
+    }),
+    get_recurring_expenses: tool({
+      description:
+        "List all recurring expenses (subscriptions, bills) with their monthly total. Use in Savings Goal Mode to check whether the required monthly savings is feasible given the user's fixed costs.",
+      inputSchema: z.object({}),
+      execute: markPrivateFinanceAccess(async () => getRecurringExpenses()),
+    }),
+  };
 
   return streamText({
     model: google("gemini-2.5-flash-lite"),
     system: systemPrompt,
     messages: modelMessages,
-    tools: {
-      web_search: tool({
-        description:
-          "Search the web for travel information, costs, and recommendations. Use for researching flights, hotels, activities, food costs, and other trip planning needs. Returns search results with titles, links, and snippets.",
-        inputSchema: z.object({
-          query: z.string().describe("The search query, e.g. 'round trip flights to Tokyo May 2026' or 'average hotel cost Paris'"),
-        }),
-        execute: async (params) => performWebSearch(params),
-      }),
-      savings_projection: tool({
-        description:
-          "Compute how long it takes to reach a savings goal, or how much to save per month for a target date. Use when the user asks about saving for a trip or a general savings goal.",
-        inputSchema: z.object({
-          targetAmount: z.number().positive().describe("Target amount in dollars"),
-          monthlyAmount: z
-            .number()
-            .positive()
-            .optional()
-            .describe("Monthly savings amount - use when user says '$X/month'"),
-          targetDate: z
-            .string()
-            .regex(/^\d{4}-\d{2}-\d{2}$/)
-            .optional()
-            .describe("Target date YYYY-MM-DD - use when user says 'by [date]' or 'in N months'"),
-        }),
-        execute: async (params) => computeSavingsProjection(params),
-      }),
-      create_savings_target: tool({
-        description:
-          "Create a savings target on the user's dashboard. Use this ONLY after the user explicitly confirms they want to save the goal (they say yes, sure, please create it, do it, etc.). Do NOT call this proactively — always show the plan with savings_projection first and ask for confirmation.",
-        inputSchema: z.object({
-          name: z
-            .string()
-            .max(200)
-            .describe("Short descriptive name for the target, e.g. 'Savings goal – May 2026' or 'Emergency fund'"),
-          targetAmount: z.number().positive().describe("Target amount in dollars"),
-          targetDate: z
-            .string()
-            .regex(/^\d{4}-\d{2}-\d{2}$/)
-            .describe("Target date YYYY-MM-DD (use last day of the target month when a month is specified)"),
-        }),
-        execute: async (params) => createSavingsTargetRecord(params),
-      }),
-      get_spending_insights: tool({
-        description:
-          "Get the user's spending habits: spending by category (last 3 months), recurring expenses/subscriptions, and flagged items with no recent activity. Use when the user asks how to cut spending, reduce expenses, or save money.",
-        inputSchema: z.object({}),
-        execute: async () => getSpendingInsights(),
-      }),
-      create_budget_goal: tool({
-        description:
-          "Add a smart budget goal (spending cap) on the user's dashboard. Use ONLY after the user confirms they want to add it. Requires category, monthly target, and rationale from get_spending_insights data.",
-        inputSchema: z.object({
-          category: z.string().describe("Plaid category code, e.g. FOOD_AND_DRINK"),
-          categoryLabel: z.string().describe("Human-friendly label, e.g. Dining & restaurants"),
-          targetType: z.enum(["cap", "percent_reduction", "savings"]).describe("Use 'cap' for monthly spending limit"),
-          monthlyTarget: z.number().positive().describe("Target monthly spend in dollars"),
-          baselineMonthlySpend: z.number().positive().describe("User's current monthly average for this category"),
-          rationale: z.string().max(300).describe("1-2 sentence explanation of the goal"),
-        }),
-        execute: async (params) => createSingleBudgetGoal(params),
-      }),
-      get_account_balances: tool({
-        description:
-          "Get current balances for all linked bank accounts (checking, savings, credit, investment). Returns totalAssets, totalLiabilities, and netWorth. Use in Savings Goal Mode to determine how much the user already has saved so the projection accounts for their current balance.",
-        inputSchema: z.object({}),
-        execute: async () => getAccountBalances(),
-      }),
-      get_recurring_expenses: tool({
-        description:
-          "List all recurring expenses (subscriptions, bills) with their monthly total. Use in Savings Goal Mode to check whether the required monthly savings is feasible given the user's fixed costs.",
-        inputSchema: z.object({}),
-        execute: async () => getRecurringExpenses(),
-      }),
-    },
+    tools: masker ? wrapToolsWithMasker(plannerTools, masker) : plannerTools,
+    experimental_transform: masker ? createPiiTransform(masker) : undefined,
     stopWhen: stepCountIs(16),
     abortSignal: AbortSignal.timeout(120_000),
     onError: ({ error }) => {

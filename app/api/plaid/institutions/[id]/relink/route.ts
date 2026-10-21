@@ -9,7 +9,7 @@ import { isDemoMode } from "@/lib/demo";
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (isDemoMode()) {
     return NextResponse.json(
@@ -19,7 +19,7 @@ export async function POST(
   }
 
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const [institution] = await db
       .select()

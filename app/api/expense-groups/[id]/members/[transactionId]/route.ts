@@ -6,15 +6,16 @@ import { apiError } from "@/lib/api/error";
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; transactionId: string } }
+  { params }: { params: Promise<{ id: string; transactionId: string }> }
 ) {
   try {
+    const { id, transactionId } = await params;
     const [deleted] = await db
       .delete(expenseGroupMembers)
       .where(
         and(
-          eq(expenseGroupMembers.groupId, params.id),
-          eq(expenseGroupMembers.transactionId, params.transactionId)
+          eq(expenseGroupMembers.groupId, id),
+          eq(expenseGroupMembers.transactionId, transactionId)
         )
       )
       .returning({ id: expenseGroupMembers.id });

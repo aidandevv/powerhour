@@ -11,13 +11,14 @@ const addMembersSchema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const [group] = await db
       .select()
       .from(expenseGroups)
-      .where(eq(expenseGroups.id, params.id));
+      .where(eq(expenseGroups.id, id));
 
     if (!group) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
@@ -41,7 +42,7 @@ export async function POST(
         await db
           .insert(expenseGroupMembers)
           .values({
-            groupId: params.id,
+            groupId: id,
             transactionId: tid,
           })
           .onConflictDoNothing({

@@ -16,9 +16,10 @@ const updateSchema = z.object({
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     let body: unknown;
     try {
       body = await req.json();
@@ -41,7 +42,7 @@ export async function PATCH(
     const [updated] = await db
       .update(recurringItems)
       .set(updateData)
-      .where(eq(recurringItems.id, params.id))
+      .where(eq(recurringItems.id, id))
       .returning();
 
     if (!updated) {

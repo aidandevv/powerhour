@@ -6,9 +6,10 @@ import { apiError } from "@/lib/api/error";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const searchParams = req.nextUrl.searchParams;
     const days = Math.min(parseInt(searchParams.get("days") || "90", 10), 730);
 
@@ -24,7 +25,7 @@ export async function GET(
       })
       .from(balanceSnapshots)
       .where(
-        eq(balanceSnapshots.accountId, params.id),
+        eq(balanceSnapshots.accountId, id),
       )
       .orderBy(desc(balanceSnapshots.snapshotDate));
 

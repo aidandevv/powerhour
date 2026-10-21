@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { budgetGoals, transactions } from "@/lib/db/schema";
 import { getSpendingSummary } from "@/lib/agent/tools/spending-summary";
 import { getRecurringExpenses } from "@/lib/agent/tools/recurring-expenses";
+import { PiiMasker } from "@/lib/agent/pii-masker";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -160,18 +161,28 @@ Generate exactly 3 SMART budget goals targeting the categories with the highest 
 export async function generateAndStoreBudgetGoals(profile?: BudgetProfile): Promise<void> {
   const { recentFrom, recentTo, priorFrom, priorTo } = dateRanges();
 
+  const masker = new PiiMasker();
   const [recent, prior, recurring] = await Promise.all([
     getSpendingSummary({ from: recentFrom, to: recentTo }),
     getSpendingSummary({ from: priorFrom, to: priorTo }),
     getRecurringExpenses(),
+    masker.seedFromDatabase(),
   ]);
 
-  const prompt = buildGoalsPrompt(
-    recent.summary,
-    prior.summary,
-    recurring.totalMonthlyEstimate,
-    recurring.items,
-    profile
+  // Recurring item names are merchant names; alias them before the prompt
+  // leaves the process and restore them in the generated goal text.
+  for (const item of recurring.items) {
+    masker.registerMerchant(item.name);
+  }
+
+  const prompt = masker.maskText(
+    buildGoalsPrompt(
+      recent.summary,
+      prior.summary,
+      recurring.totalMonthlyEstimate,
+      recurring.items,
+      profile
+    )
   );
 
   const tierInstruction = profile?.tier
@@ -199,11 +210,11 @@ export async function generateAndStoreBudgetGoals(profile?: BudgetProfile): Prom
     await tx.insert(budgetGoals).values(
       object.goals.map((g) => ({
         category: g.category,
-        categoryLabel: g.categoryLabel,
+        categoryLabel: masker.unmaskText(g.categoryLabel),
         targetType: g.targetType,
         monthlyTarget: String(g.monthlyTarget),
         baselineMonthlySpend: String(g.baselineMonthlySpend),
-        rationale: g.rationale,
+        rationale: masker.unmaskText(g.rationale),
         status: "suggested" as const,
       }))
     );

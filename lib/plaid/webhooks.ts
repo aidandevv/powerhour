@@ -6,6 +6,20 @@ import { syncInstitution } from "./sync";
 import { detectAllRecurring } from "@/lib/recurring";
 import crypto from "crypto";
 
+const PLAID_WEBHOOK_ALGORITHM = "ES256";
+const PLAID_WEBHOOK_MAX_AGE_MS = 5 * 60 * 1000;
+
+function timingSafeEqualString(a: string, b: string): boolean {
+  const aBuffer = Buffer.from(a);
+  const bBuffer = Buffer.from(b);
+
+  if (aBuffer.length !== bBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(aBuffer, bBuffer);
+}
+
 export async function verifyPlaidWebhook(
   body: string,
   headers: Record<string, string>
@@ -14,13 +28,18 @@ export async function verifyPlaidWebhook(
   if (!signedJwt) return false;
 
   try {
-    // Get the webhook verification key from Plaid
-    const keyId = JSON.parse(
-      Buffer.from(signedJwt.split(".")[0], "base64url").toString()
-    ).kid;
+    const tokenParts = signedJwt.split(".");
+    if (tokenParts.length !== 3) return false;
 
+    const [headerB64, payloadB64, signatureB64] = tokenParts;
+    const header = JSON.parse(Buffer.from(headerB64, "base64url").toString());
+    if (header.alg !== PLAID_WEBHOOK_ALGORITHM || typeof header.kid !== "string") {
+      return false;
+    }
+
+    // Get the webhook verification key from Plaid
     const response = await plaidClient.webhookVerificationKeyGet({
-      key_id: keyId,
+      key_id: header.kid,
     });
 
     const key = response.data.key;
@@ -36,14 +55,13 @@ export async function verifyPlaidWebhook(
       format: "jwk",
     });
 
-    const [headerB64, payloadB64, signatureB64] = signedJwt.split(".");
     const data = `${headerB64}.${payloadB64}`;
     const signature = Buffer.from(signatureB64, "base64url");
 
     const isValid = crypto.verify(
       "SHA256",
       Buffer.from(data),
-      publicKey,
+      { key: publicKey, dsaEncoding: "ieee-p1363" },
       signature
     );
 
@@ -53,12 +71,23 @@ export async function verifyPlaidWebhook(
     const payload = JSON.parse(
       Buffer.from(payloadB64, "base64url").toString()
     );
+
+    if (typeof payload.iat !== "number") return false;
+    const issuedAtMs = payload.iat * 1000;
+    const now = Date.now();
+    if (issuedAtMs > now || now - issuedAtMs > PLAID_WEBHOOK_MAX_AGE_MS) {
+      return false;
+    }
+
     const bodyHash = crypto
       .createHash("sha256")
       .update(body)
       .digest("base64url");
 
-    return payload.request_body_sha256 === bodyHash;
+    return (
+      typeof payload.request_body_sha256 === "string" &&
+      timingSafeEqualString(payload.request_body_sha256, bodyHash)
+    );
   } catch {
     return false;
   }

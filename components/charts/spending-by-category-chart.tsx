@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSpendingSummary } from "@/hooks/use-dashboard";
 import { formatCategory } from "@/lib/utils";
+import { asNumber } from "./formatters";
 
 const COLORS = [
   "#1a4766",
@@ -77,8 +78,8 @@ export function SpendingByCategoryChart() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => [
-                  `$${value.toLocaleString("en-US", {
+                formatter={(value) => [
+                  `$${asNumber(value).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                   })}`,
                 ]}

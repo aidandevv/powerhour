@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTopMerchants } from "@/hooks/use-dashboard";
+import { asNumber } from "./formatters";
 
 export function TopMerchantsChart() {
   const { data, isLoading } = useTopMerchants(undefined, undefined, 10);
@@ -56,8 +57,8 @@ export function TopMerchantsChart() {
                 tick={{ fill: "hsl(var(--muted-foreground))" }}
               />
               <Tooltip
-                formatter={(value: number) => [
-                  `$${value.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                formatter={(value) => [
+                  `$${asNumber(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
                   "Spent",
                 ]}
               />

@@ -86,6 +86,9 @@ export default function LoginPage() {
               >
                 {loading ? "Entering demo..." : "Enter demo"}
               </Button>
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">

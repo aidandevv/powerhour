@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import useSWR from "swr";
 import type { ProjectedExpense } from "@/types";
+import { asNumber, asText } from "./formatters";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -93,9 +94,9 @@ export function CashFlowProjectionChart() {
                   fontSize={11}
                 />
                 <Tooltip
-                  labelFormatter={(l) => `Week of ${fmtDate(l)}`}
-                  formatter={(value: number) => [
-                    `$${value.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                  labelFormatter={(label) => `Week of ${fmtDate(asText(label))}`}
+                  formatter={(value) => [
+                    `$${asNumber(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
                     "Projected",
                   ]}
                 />
