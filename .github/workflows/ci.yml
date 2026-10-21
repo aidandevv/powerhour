@@ -148,10 +148,10 @@ jobs:
           EOF
 
       - name: Validate release Compose file
-        run: docker compose -f deploy/docker-compose.yml config --quiet
+        run: docker compose --env-file .env -f deploy/docker-compose.yml config --quiet
 
       - name: Validate source Compose file
-        run: docker compose -f docker/docker-compose.yml config --quiet
+        run: docker compose --env-file .env -f docker/docker-compose.yml config --quiet
 
       - name: Build Docker image
         uses: docker/build-push-action@v6
