@@ -4,6 +4,7 @@ import { z } from "zod";
 import { generateAndStoreBudgetGoals, getGoalsWithProgress } from "@/lib/ai/budget-goals";
 import type { BudgetProfile } from "@/lib/ai/budget-goals";
 import { apiError } from "@/lib/api/error";
+import { getTrustedClientIp } from "@/lib/auth/client-ip";
 
 export const runtime = "nodejs";
 
@@ -22,10 +23,7 @@ const profileSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
+  const ip = getTrustedClientIp(req.headers);
 
   try {
     await generateRateLimiter.consume(ip);
