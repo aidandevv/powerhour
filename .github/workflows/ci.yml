@@ -3,9 +3,13 @@ name: CI
 on:
   pull_request:
     branches:
+      - dev
+      - stable
       - main
   push:
     branches:
+      - dev
+      - stable
       - main
   workflow_dispatch:
 
@@ -125,6 +129,7 @@ jobs:
         run: |
           cat > .env <<EOF
           POWERHOUR_VERSION=ci
+          POWERHOUR_IMAGE=powerhour:ci
           POWERHOUR_HOST=127.0.0.1
           POWERHOUR_PORT=3000
           POSTGRES_USER=finance_app

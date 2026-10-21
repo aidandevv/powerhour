@@ -8,7 +8,6 @@
  *
  * Uses Node.js runtime for DB access and PDFKit.
  */
-import { generateText } from "ai";
 import { z } from "zod";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import { gte, lte, gt, sql, eq, isNotNull, and } from "drizzle-orm";
@@ -23,10 +22,9 @@ import {
   type MonthlyTrend,
   type MerchantSpend,
 } from "@/lib/ai/pdf";
-import { getAiTimeoutMs, getLanguageModel, resolveProvider } from "@/lib/ai/model";
+import { resolveProvider } from "@/lib/ai/model";
+import { generateReportNarrative } from "@/lib/ai/report-narrative";
 import type { SpendingSummaryResult } from "@/lib/agent/tools/spending-summary";
-import type { AccountBalancesResult } from "@/lib/agent/tools/account-balances";
-import type { RecurringExpensesResult } from "@/lib/agent/tools/recurring-expenses";
 import { apiError } from "@/lib/api/error";
 import { logAuditEvent } from "@/lib/audit-log";
 import { getTrustedClientIp } from "@/lib/auth/client-ip";
@@ -81,18 +79,8 @@ export async function POST(req: Request) {
       ]);
 
     // ── Generate AI narrative with full context ───────────────────────────────
-    const narrativePrompt = buildNarrativePrompt(
+    const narrative = await generateReportNarrative({
       from, to, spending, accountBalances, recurring, monthlyTrends, topMerchants,
-    );
-
-    const { text: narrative } = await generateText({
-      model: getLanguageModel("report"),
-      system:
-        "You are a financial data analyst. Write a concise 2-3 paragraph summary of the " +
-        "user's financial data. Focus on notable patterns, top categories, net worth, and " +
-        "monthly trends. Do NOT give financial advice. Be factual and data-driven.",
-      prompt: narrativePrompt,
-      abortSignal: AbortSignal.timeout(getAiTimeoutMs("report")),
     });
 
     // ── Detect anomalies ──────────────────────────────────────────────────────
@@ -215,56 +203,6 @@ async function fetchTopMerchants(
     amount: parseFloat(r.total ?? "0"),
     count: r.count,
   }));
-}
-
-// ─── Narrative prompt builder ─────────────────────────────────────────────────
-
-function buildNarrativePrompt(
-  from: string,
-  to: string,
-  spending: SpendingSummaryResult,
-  accountBalances: AccountBalancesResult,
-  recurring: RecurringExpensesResult,
-  monthlyTrends: MonthlyTrend[],
-  topMerchants: MerchantSpend[],
-): string {
-  const categoryBreakdown = spending.summary
-    .slice(0, 8)
-    .map((r) => `  - ${r.category}: $${r.amount.toFixed(2)} (${r.count} txns)`)
-    .join("\n");
-
-  const trendSummary = monthlyTrends
-    .map((t) => `  ${t.month}: $${t.amount.toFixed(2)}`)
-    .join("\n");
-
-  const merchantSummary = topMerchants
-    .slice(0, 6)
-    .map((m) => `  - ${m.name}: $${m.amount.toFixed(2)} (${m.count} txns)`)
-    .join("\n");
-
-  return `Summarize this financial report for ${from} to ${to}:
-
-SPENDING (period):
-  Total: $${spending.totalSpend.toFixed(2)}
-  Categories:
-${categoryBreakdown}
-
-NET WORTH (current):
-  Total assets: $${accountBalances.totalAssets.toFixed(2)}
-  Total liabilities: $${accountBalances.totalLiabilities.toFixed(2)}
-  Net worth: $${accountBalances.netWorth.toFixed(2)}
-
-RECURRING EXPENSES:
-  Estimated monthly total: $${recurring.totalMonthlyEstimate.toFixed(2)}/mo
-  Active items: ${recurring.items.length}
-
-MONTHLY SPENDING TREND (last 6 months):
-${trendSummary}
-
-TOP MERCHANTS (this period):
-${merchantSummary}
-
-Write 2-3 concise, data-driven paragraphs. Be factual. Do not give financial advice.`;
 }
 
 // ─── Anomaly detection ────────────────────────────────────────────────────────

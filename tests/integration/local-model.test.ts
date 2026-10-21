@@ -103,6 +103,11 @@ describe("OpenAI-compatible HTTP transport", () => {
       const [row] = await sql`SELECT count(*)::int AS count FROM budget_goals WHERE status = 'suggested'`;
       expect(row.count).toBe(3);
       expect(fixture.requests.at(-1).response_format.type).toBe(structured === "true" ? "json_schema" : "json_object");
+      const recurringNames = await sql`SELECT name FROM recurring_items WHERE is_active = true ORDER BY name LIMIT 8`;
+      expect(recurringNames.length).toBeGreaterThan(0);
+      const prompt = JSON.stringify(fixture.requests.at(-1).messages);
+      expect(prompt).toContain("Merchant-");
+      for (const item of recurringNames) expect(prompt).not.toContain(item.name);
     });
 
     it("generates a real PDF using the local report model", async () => {
@@ -115,6 +120,16 @@ describe("OpenAI-compatible HTTP transport", () => {
       expect(response.headers.get("Content-Type")).toBe("application/pdf");
       expect(Buffer.from(await response.arrayBuffer()).subarray(0, 5).toString()).toBe("%PDF-");
       expect(fixture.requests.at(-1).model).toBe("smoke-report");
+      const merchants = await sql`
+        SELECT merchant_name FROM transactions
+        WHERE merchant_name IS NOT NULL AND amount > 0 AND pending = false
+          AND date >= '2026-01-01' AND date <= '2026-12-31'
+        GROUP BY merchant_name ORDER BY sum(amount) DESC LIMIT 6
+      `;
+      expect(merchants.length).toBeGreaterThan(0);
+      const prompt = JSON.stringify(fixture.requests.at(-1).messages);
+      expect(prompt).toContain("Merchant-");
+      for (const merchant of merchants) expect(prompt).not.toContain(merchant.merchant_name);
     });
 
     it("generates and stores the weekly digest using its model override", async () => {
