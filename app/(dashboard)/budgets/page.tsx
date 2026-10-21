@@ -8,6 +8,7 @@ import { OnboardingFlow } from "@/components/budgets/onboarding-flow";
 import { ManageGoals } from "@/components/budgets/manage-goals";
 import type { BudgetGoalWithProgress } from "@/lib/ai/budget-goals";
 import type { BudgetProfile } from "@/lib/ai/budget-goals";
+import { AiFeatureBadge } from "@/components/ai/provider-status";
 
 interface GoalsResponse {
   goals: BudgetGoalWithProgress[];
@@ -89,6 +90,7 @@ export default function BudgetsPage() {
             <h1 className="font-display text-2xl font-semibold text-foreground tracking-tight">
               Smart Budgets
             </h1>
+            <AiFeatureBadge feature="goals" />
             <p className="text-sm text-muted-foreground">
               AI-generated spending goals based on your transaction history
             </p>

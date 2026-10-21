@@ -5,17 +5,13 @@
  * incorporates recurring expenses, and surfaces exactly 3 goals.
  */
 import { generateObject } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { and, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { budgetGoals, transactions } from "@/lib/db/schema";
 import { getSpendingSummary } from "@/lib/agent/tools/spending-summary";
 import { getRecurringExpenses } from "@/lib/agent/tools/recurring-expenses";
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+import { getAiTimeoutMs, getLanguageModel } from "@/lib/ai/model";
 
 // ─── Zod schema for AI output ─────────────────────────────────────────────────
 
@@ -179,7 +175,7 @@ export async function generateAndStoreBudgetGoals(profile?: BudgetProfile): Prom
     : TIER_SYSTEM_INSTRUCTIONS.balanced;
 
   const { object } = await generateObject({
-    model: google("gemini-2.5-flash-lite"),
+    model: getLanguageModel("goals"),
     schema: goalsOutputSchema,
     system:
       "You are a financial coach. Analyze spending data and create exactly 3 SMART budget goals. " +
@@ -189,7 +185,7 @@ export async function generateAndStoreBudgetGoals(profile?: BudgetProfile): Prom
       "Be specific, realistic, and brief in the rationale (2-3 sentences max). " +
       tierInstruction,
     prompt,
-    abortSignal: AbortSignal.timeout(30_000),
+    abortSignal: AbortSignal.timeout(getAiTimeoutMs("goals")),
   });
 
   // Persist: delete old 'suggested' goals, insert 3 new ones

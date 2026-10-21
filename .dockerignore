@@ -6,6 +6,15 @@ node_modules
 .git
 .github
 .husky
+.claude
+.codex
+.agents
+AGENTS.md
+CLAUDE.md
+docs/dev_journal.md
+docs/product_insights.md
+playwright-report
+test-results
 .npm-cache
 coverage
 backups

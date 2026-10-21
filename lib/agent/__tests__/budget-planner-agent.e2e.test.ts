@@ -33,9 +33,10 @@ vi.mock("ai", async () => {
   };
 });
 
-vi.mock("@ai-sdk/google", () => ({
-  createGoogleGenerativeAI: vi.fn(() => vi.fn(() => "mock-model")),
-}));
+vi.mock("@/lib/ai/model", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/ai/model")>("@/lib/ai/model");
+  return { ...actual, getLanguageModel: vi.fn(() => "mock-model") };
+});
 
 vi.mock("../tools/savings-projection", () => ({
   computeSavingsProjection: vi.fn(),
@@ -123,6 +124,8 @@ describe("runBudgetPlannerAgent PII e2e", () => {
     ]);
 
     const streamOptions = streamTextMock.mock.calls[0][0];
+    expect(streamOptions.model).toBe("mock-model");
+    expect(streamOptions.stopWhen).toBe(16);
     const toolResult = await streamOptions.tools.create_savings_target.execute(
       {
         name: "Boost Account-A",

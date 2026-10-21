@@ -5,6 +5,9 @@ services:
       dockerfile: docker/Dockerfile
     restart: unless-stopped
     env_file: ../.env
+    # Lets AI_BASE_URL point at a model server on the host (e.g. Ollama) on Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

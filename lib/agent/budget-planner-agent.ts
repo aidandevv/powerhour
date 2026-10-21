@@ -14,7 +14,6 @@
  *   creates the target in the DB via createSavingsTarget tool on user confirmation.
  */
 import { streamText, tool, stepCountIs, convertToModelMessages, type UIMessage } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { computeSavingsProjection } from "./tools/savings-projection";
 import { createSavingsTargetRecord } from "./tools/create-savings-target";
@@ -22,6 +21,7 @@ import { getSpendingInsights } from "./tools/spending-insights";
 import { getAccountBalances } from "./tools/account-balances";
 import { getRecurringExpenses } from "./tools/recurring-expenses";
 import { createSingleBudgetGoal } from "@/lib/ai/budget-goals";
+import { getAgentLimits, getLanguageModel } from "@/lib/ai/model";
 import { performWebSearch } from "./tools/web-search";
 import type { PiiMasker } from "./pii-masker";
 import {
@@ -29,10 +29,6 @@ import {
   maskUserMessages,
   wrapToolsWithMasker,
 } from "./pii-transform";
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
 
 function buildSystemPrompt(budgetContext?: { estimatedTotal: number; planTitle: string }) {
   const contextNote = budgetContext
@@ -398,14 +394,16 @@ export async function runBudgetPlannerAgent(
     }),
   };
 
+  const { maxSteps, timeoutMs } = getAgentLimits("planner");
+
   return streamText({
-    model: google("gemini-2.5-flash-lite"),
+    model: getLanguageModel("planner"),
     system: systemPrompt,
     messages: modelMessages,
     tools: masker ? wrapToolsWithMasker(plannerTools, masker) : plannerTools,
     experimental_transform: masker ? createPiiTransform(masker) : undefined,
-    stopWhen: stepCountIs(16),
-    abortSignal: AbortSignal.timeout(120_000),
+    stopWhen: stepCountIs(maxSteps),
+    abortSignal: AbortSignal.timeout(timeoutMs),
     onError: ({ error }) => {
       console.error("[budget-planner-agent] Stream error:", error);
     },

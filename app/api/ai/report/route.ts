@@ -2,14 +2,13 @@
  * PDF Report Generation API
  *
  * PDF-01: Dashboard button triggers this endpoint
- * PDF-03: AI-generated narrative via Gemini
+ * PDF-03: AI-generated narrative via the configured LLM
  * PDF-05: Chat agent can also trigger report generation
  * PDF-06: No files written to disk — binary buffer response
  *
  * Uses Node.js runtime for DB access and PDFKit.
  */
 import { generateText } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import { gte, lte, gt, sql, eq, isNotNull, and } from "drizzle-orm";
@@ -24,6 +23,7 @@ import {
   type MonthlyTrend,
   type MerchantSpend,
 } from "@/lib/ai/pdf";
+import { getAiTimeoutMs, getLanguageModel, resolveProvider } from "@/lib/ai/model";
 import type { SpendingSummaryResult } from "@/lib/agent/tools/spending-summary";
 import type { AccountBalancesResult } from "@/lib/agent/tools/account-balances";
 import type { RecurringExpensesResult } from "@/lib/agent/tools/recurring-expenses";
@@ -37,10 +37,6 @@ const reportRateLimiter = new RateLimiterMemory({
   points: 5,
   duration: 60,
   blockDuration: 60,
-});
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
 });
 
 const requestSchema = z.object({
@@ -90,13 +86,13 @@ export async function POST(req: Request) {
     );
 
     const { text: narrative } = await generateText({
-      model: google("gemini-2.5-flash-lite"),
+      model: getLanguageModel("report"),
       system:
         "You are a financial data analyst. Write a concise 2-3 paragraph summary of the " +
         "user's financial data. Focus on notable patterns, top categories, net worth, and " +
         "monthly trends. Do NOT give financial advice. Be factual and data-driven.",
       prompt: narrativePrompt,
-      abortSignal: AbortSignal.timeout(15_000),
+      abortSignal: AbortSignal.timeout(getAiTimeoutMs("report")),
     });
 
     // ── Detect anomalies ──────────────────────────────────────────────────────
@@ -113,6 +109,7 @@ export async function POST(req: Request) {
       monthlyTrends,
       topMerchants,
       narrative,
+      localModelBeta: resolveProvider() === "openai-compatible",
       anomalies,
     });
 

@@ -1,13 +1,13 @@
 /**
  * Weekly financial digest generator.
- * Pulls spending, net worth, and anomaly data, then uses Gemini to write
+ * Pulls spending, net worth, and anomaly data, then uses the configured LLM to write
  * a plain-English summary stored in the `digests` table.
  *
  * Called automatically by the in-process scheduler every Monday at 08:00.
  * Can also be triggered manually via the Ticker chat ("give me my weekly digest").
  */
 import { generateText } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { getAiTimeoutMs, getLanguageModel, resolveProvider } from "@/lib/ai/model";
 import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { digests } from "@/lib/db/schema";
@@ -15,10 +15,6 @@ import { getSpendingSummary } from "@/lib/agent/tools/spending-summary";
 import { getAccountBalances } from "@/lib/agent/tools/account-balances";
 import { getRecurringExpenses } from "@/lib/agent/tools/recurring-expenses";
 import { detectSpendingAnomalies } from "@/lib/agent/tools/detect-anomalies";
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
 
 export interface DigestRecord {
   id: string;
@@ -86,12 +82,12 @@ ${anomalies.anomalies.length > 0 ? anomalies.anomalies.map((a) => `- ${a}`).join
 Write a 3-5 bullet-point weekly summary in Markdown. Each bullet should be a concrete, data-driven observation. Start with a one-sentence headline. Do not give financial advice.`;
 
   const { text } = await generateText({
-    model: google("gemini-2.5-flash-lite"),
+    model: getLanguageModel("digest"),
     system:
       "You are a financial data assistant writing a concise weekly digest. " +
       "Be factual, brief, and data-driven. Use markdown bullets. No advice.",
     prompt,
-    abortSignal: AbortSignal.timeout(30_000),
+    abortSignal: AbortSignal.timeout(getAiTimeoutMs("digest")),
   });
 
   const [created] = await db
@@ -99,7 +95,7 @@ Write a 3-5 bullet-point weekly summary in Markdown. Each bullet should be a con
     .values({
       periodFrom: weekAgoStr,
       periodTo: todayStr,
-      summaryMarkdown: text,
+      summaryMarkdown: resolveProvider() === "openai-compatible" ? `Local model · Beta\n\n${text}` : text,
     })
     .returning();
 

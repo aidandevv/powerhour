@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
 import { RefreshCw, Trash2, KeyRound, ShieldCheck, Clock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { AiFeatureBadge, AiProviderSettings } from "@/components/ai/provider-status";
 
 const ACTION_LABELS: Record<string, string> = {
   login: "Signed in",
@@ -156,6 +157,8 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Settings</h1>
 
+      <AiProviderSettings />
+
       <Card>
         <CardHeader>
           <CardTitle>Appearance</CardTitle>
@@ -202,11 +205,12 @@ export default function SettingsPage() {
           </div>
           <div className="border-t pt-4 flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="digest-toggle" className="text-sm font-medium">
+              <Label htmlFor="digest-toggle" className="flex items-center gap-2 text-sm font-medium">
                 Weekly AI digest
+                <AiFeatureBadge feature="digest" />
               </Label>
               <p className="text-xs text-muted-foreground">
-                Generates a Gemini-written spending summary every Monday at 08:00.
+                Generates an AI-written spending summary every Monday at 08:00.
               </p>
             </div>
             <Switch

@@ -3,6 +3,9 @@ import path from "path";
 
 export default defineConfig({
   test: {
+    include: ["{app,components,lib,scripts,tests}/**/*.test.{ts,tsx}"],
+    // Database suites share one disposable database and must not truncate concurrently.
+    fileParallelism: !process.env.TEST_DATABASE_URL,
     globals: true,
     testTimeout: 15_000,
     setupFiles: ["./test/setup.ts"],
@@ -24,6 +27,12 @@ export default defineConfig({
         "next-env.d.ts",
       ],
       thresholds: {
+        "lib/ai/model.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "lib/crypto.ts": {
           statements: 100,
           branches: 100,
