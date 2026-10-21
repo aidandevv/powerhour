@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BudgetGoalCard } from "./budget-goal-card";
 import type { BudgetGoalWithProgress } from "@/lib/ai/budget-goals";
+import { AiFeatureBadge } from "@/components/ai/provider-status";
 
 interface GoalsResponse {
   goals: BudgetGoalWithProgress[];
@@ -122,6 +123,7 @@ export function BudgetGoalsPanel() {
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Smart Budget Goals
           </span>
+          <AiFeatureBadge feature="goals" />
         </div>
         <ChevronDown
           className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${

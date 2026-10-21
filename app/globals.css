@@ -1,45 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* PP Kyoto — headings */
-@font-face {
-  font-family: "PP Kyoto";
-  font-weight: 300;
-  font-style: normal;
-  src: url("/fonts/pp-kyoto/PPKyoto-Light.otf") format("opentype");
-}
-@font-face {
-  font-family: "PP Kyoto";
-  font-weight: 500;
-  font-style: normal;
-  src: url("/fonts/pp-kyoto/PPKyoto-Medium.otf") format("opentype");
-}
-@font-face {
-  font-family: "PP Kyoto";
-  font-weight: 800;
-  font-style: normal;
-  src: url("/fonts/pp-kyoto/PPKyoto-Extrabold.otf") format("opentype");
-}
-
-/* PP Mori — body text */
-@font-face {
-  font-family: "PP Mori";
-  font-weight: 400;
-  font-style: normal;
-  src: url("/fonts/pp-mori/PPMori-Regular.otf") format("opentype");
-}
-@font-face {
-  font-family: "PP Mori";
-  font-weight: 600;
-  font-style: normal;
-  src: url("/fonts/pp-mori/PPMori-Semibold.otf") format("opentype");
-}
+@import "tailwindcss";
+@config "../tailwind.config.ts";
 
 @layer base {
   :root {
-    --font-sans: "PP Mori", ui-sans-serif, system-ui, sans-serif;
-    --font-display: "PP Kyoto", ui-sans-serif, system-ui, sans-serif;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-display: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
     /* powerhour palette: Primary #1a4766, Tertiary #a5b5c2, Background #ebeef0 */
     --background: 210 15% 94%;
     --foreground: 205 45% 18%;

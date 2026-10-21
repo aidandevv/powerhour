@@ -1,6 +1,6 @@
 /**
- * ReAct agent powered by Gemini 2.5 Flash Lite via Vercel AI SDK.
- * Streams responses token-by-token with an 8-step iteration cap.
+ * ReAct agent via Vercel AI SDK (model resolved by lib/ai/model).
+ * Streams responses token-by-token with a configurable step cap (default 8).
  *
  * Tool keys use snake_case because Gemini models normalise camelCase
  * to snake_case in their function calls, causing SDK mismatches.
@@ -12,9 +12,15 @@ import {
   convertToModelMessages,
   type UIMessage,
 } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
+import { getAgentLimits, getLanguageModel } from "@/lib/ai/model";
 import { buildSystemPrompt } from "./prompt";
+import type { PiiMasker } from "./pii-masker";
+import {
+  createPiiTransform,
+  maskUserMessages,
+  wrapToolsWithMasker,
+} from "./pii-transform";
 
 // Tool function imports
 import { getSpendingSummary } from "./tools/spending-summary";
@@ -43,11 +49,6 @@ import { getSavingsTargets } from "./tools/savings-targets";
 import { createSavingsTargetRecord } from "./tools/create-savings-target";
 import { getSpendingInsights } from "./tools/spending-insights";
 import { computeSavingsProjection } from "./tools/savings-projection";
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
-const model = google("gemini-2.5-flash-lite");
 
 const agentTools = {
   get_spending_summary: tool({
@@ -316,16 +317,19 @@ export type AgentTools = typeof agentTools;
  * Run the agent with streaming. Returns a streamText result that can be
  * converted to a streaming response via .toUIMessageStreamResponse().
  */
-export async function runAgent(messages: UIMessage[]) {
-  const modelMessages = await convertToModelMessages(messages);
+export async function runAgent(messages: UIMessage[], masker?: PiiMasker) {
+  const preparedMessages = masker ? maskUserMessages(messages, masker) : messages;
+  const modelMessages = await convertToModelMessages(preparedMessages);
+  const { maxSteps, timeoutMs } = getAgentLimits("chat");
 
   return streamText({
-    model,
+    model: getLanguageModel("chat"),
     system: buildSystemPrompt(),
     messages: modelMessages,
-    tools: agentTools,
-    stopWhen: stepCountIs(8),
-    abortSignal: AbortSignal.timeout(90_000),
+    tools: masker ? wrapToolsWithMasker(agentTools, masker) : agentTools,
+    experimental_transform: masker ? createPiiTransform(masker) : undefined,
+    stopWhen: stepCountIs(maxSteps),
+    abortSignal: AbortSignal.timeout(timeoutMs),
     onError: ({ error }) => {
       console.error("[agent] Stream error:", error);
     },

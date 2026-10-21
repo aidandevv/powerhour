@@ -6,6 +6,31 @@ import { institutions, accounts } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto";
 import { encryptField } from "@/lib/crypto-fields";
 
+type InstitutionRow = typeof institutions.$inferSelect;
+
+export type SafeInstitution = Pick<
+  InstitutionRow,
+  | "id"
+  | "institutionName"
+  | "institutionId"
+  | "status"
+  | "lastSyncedAt"
+  | "createdAt"
+  | "updatedAt"
+>;
+
+export function toSafeInstitution(institution: InstitutionRow): SafeInstitution {
+  return {
+    id: institution.id,
+    institutionName: institution.institutionName,
+    institutionId: institution.institutionId,
+    status: institution.status,
+    lastSyncedAt: institution.lastSyncedAt,
+    createdAt: institution.createdAt,
+    updatedAt: institution.updatedAt,
+  };
+}
+
 export async function createLinkToken() {
   const response = await plaidClient.linkTokenCreate({
     user: { client_user_id: "single-user" },
@@ -92,7 +117,7 @@ export async function exchangePublicToken(publicToken: string) {
     });
   }
 
-  return institution;
+  return toSafeInstitution(institution);
 }
 
 /** Update an existing institution with a new access token (after relink) */

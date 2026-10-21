@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNetWorthHistory } from "@/hooks/use-dashboard";
+import { asNumber, asText } from "./formatters";
 
 export function NetWorthChart() {
   const { data, isLoading } = useNetWorthHistory();
@@ -61,14 +62,14 @@ export function NetWorthChart() {
                 fontSize={12}
               />
               <Tooltip
-                formatter={(value: number) => [
-                  `$${value.toLocaleString("en-US", {
+                formatter={(value) => [
+                  `$${asNumber(value).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                   })}`,
                   "Net Worth",
                 ]}
                 labelFormatter={(label) =>
-                  new Date(label).toLocaleDateString("en-US", {
+                  new Date(asText(label)).toLocaleDateString("en-US", {
                     month: "long",
                     day: "numeric",
                     year: "numeric",

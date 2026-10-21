@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileText, Loader2 } from "lucide-react";
+import { AiFeatureBadge } from "@/components/ai/provider-status";
 
 export function ReportButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -59,12 +60,14 @@ export function ReportButton() {
       <Button variant="outline" size="sm" onClick={() => setIsOpen(true)}>
         <FileText className="h-4 w-4 mr-1.5" />
         Generate Report
+        <AiFeatureBadge feature="report" />
       </Button>
     );
   }
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
+      <AiFeatureBadge feature="report" />
       <div className="flex items-center gap-1.5 text-sm">
         <label className="text-muted-foreground">From</label>
         <Input

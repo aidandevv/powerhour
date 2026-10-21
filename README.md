@@ -1,213 +1,347 @@
 # powerhour
 
-A self-hosted personal finance dashboard with AI-powered insights, built with Next.js, Plaid, and Gemini.
+A self-hosted, single-user finance dashboard with Plaid account sync, budgeting,
+AI assistants, and PDF reports. Use Google Gemini or an OpenAI-compatible model
+server, including local inference with Ollama, llama.cpp, or LM Studio.
 
-Aggregates spending, balances, and recurring expenses across all your financial institutions into a single dashboard — then layers on two AI agents that can answer questions about your money, generate PDF reports, plan travel budgets, and help you cut spending.
+All five local-model integrations are **Beta**. The quick start below checks
+out `dev` for evaluation. The release flow is `dev` → `stable` → `main`, with
+`main` as the production source of truth.
 
-> **Not affiliated with Plaid.** Each deployer is responsible for their own Plaid API credentials and must comply with Plaid's terms of service.
+## Contents
 
----
+- [Features](#features)
+- [Quick start](#quick-start)
+- [AI configuration](#ai-configuration)
+- [Docker deployment](#docker-deployment)
+- [Privacy and security](#privacy-and-security)
+- [Development and testing](#development-and-testing)
+- [Architecture](#architecture)
+- [Contributing and license](#contributing-and-license)
 
-## What it does
+## Features
 
-**Dashboard** — Net worth tracking, spending trends by category, credit utilization, account balances, and KPI cards. All charts update daily via automated Plaid sync.
+| Feature | What it provides |
+| --- | --- |
+| Dashboard | Net worth, account balances, spending trends, credit utilization, and savings progress. |
+| Transactions | Search, filters, pagination, and expense groups across linked accounts. |
+| Accounts and projections | Balance history, recurring expenses, an expense calendar, and savings projections. |
+| Subscription audit | Flags recurring items with no activity for at least 90 days and estimates potential savings. |
+| Ticker | Streaming AI chat that queries financial data through tools. **Local model: Beta.** |
+| Budget Planner | Travel cost research through DuckDuckGo, savings plans, and spending analysis. **Beta, including local model support.** |
+| PDF reports | Financial summaries, tables, charts, and an AI-written narrative. **Local model summaries: Beta.** |
+| Smart budget goals | Suggested category caps based on recent spending and comparison with the preceding period. **Local model: Beta.** |
+| Weekly digests | Saved AI summaries of spending trends and anomalies. **Local model: Beta.** |
+| Settings | Linked institutions, scheduled jobs, password changes, security events, and per-feature AI model status. |
 
-**Ticker AI chat** — A conversational agent embedded in the dashboard. Ask things like *"How much did I spend on dining last month?"*, *"Audit my subscriptions"*, or *"Generate a report for January"*. Ticker calls 24 tools to query your real transaction data and streams answers back in real time.
-
-**Budget Planner** — A separate AI agent with three modes:
-- **Travel budgets** — Researches real costs via Google search grounding, then builds a detailed budget table with low/mid/high estimates
-- **Savings goals** — *"Have $5k saved by May"* → calculates monthly savings needed, checks feasibility against your recurring expenses, and tracks progress on the dashboard
-- **Cut spending** — Analyses your top spending categories and suggests actionable budget caps based on your actual data
-
-**PDF reports** — On-demand financial reports generated entirely in-memory with custom PDFKit charts. Nine sections including an AI-written narrative summary, spending breakdowns, net worth history, and anomaly highlights.
-
-**Subscriptions audit** — Flags recurring charges with no activity in 90+ days and calculates potential monthly savings if cancelled.
-
-**Smart Budget Goals** — AI-generated spending caps per category with progress tracking. Based on 3-month spending history and month-over-month trends.
-
----
-
-## Tech stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 14 (App Router, Server Components) |
-| Language | TypeScript (strict mode) |
-| Database | PostgreSQL 16 via Drizzle ORM |
-| AI | Gemini 2.5 Flash Lite via Vercel AI SDK v6 |
-| Auth | iron-session (encrypted httpOnly cookies, 8-hour expiry) |
-| Financial data | Plaid API (transactions, balances, recurring detection, webhooks) |
-| Styling | Tailwind CSS + shadcn/ui |
-| PDF | PDFKit (in-memory rendering, custom chart primitives) |
-| Deployment | Docker Compose, nginx reverse proxy, Let's Encrypt TLS |
-
----
-
-## Pages
-
-| Route | Description |
-|---|---|
-| `/` | Dashboard — net worth, KPI cards, budget goals, savings targets, account overview, embedded Ticker chat |
-| `/transactions` | Searchable transaction list with filters, pagination, and expense group management |
-| `/accounts` | Institution-grouped accounts with per-account balance history charts |
-| `/projections` | Expense calendar, recurring item management, and savings goal projection charts |
-| `/subscriptions` | Subscription audit — flags inactive items, shows cost at risk |
-| `/budgets` | AI-generated smart budget goals with per-category progress bars |
-| `/budget-planner` | Two-pane AI chat for travel budgets, savings goals, and spending analysis |
-| `/settings` | Theme, scheduled job toggles, password management, Plaid institutions, security log |
-
----
-
-## Security
-
-- **Encryption at rest** — Plaid access tokens encrypted with AES-256-GCM (random IV per encryption, separate auth tag)
-- **Database-layer isolation** — AI agent tools query PostgreSQL views that structurally exclude sensitive columns. Even a compromised prompt cannot access tokens.
-- **Layered rate limiting** — nginx (login), application middleware (all API routes), and per-endpoint limits (chat, report, budget planner)
-- **Webhook verification** — Full JWK-based JWT signature + SHA-256 body hash verification for Plaid webhooks
-- **Audit log** — Records logins, password changes, institution links/deletes, and report downloads with IP and metadata
-- **HTTP headers** — HSTS, CSP with Plaid allowlist, X-Frame-Options DENY, strict referrer policy
-
----
+Local-model entry points display beta badges. Generated PDF summaries and saved
+local-model digests also carry a beta marker. Model compatibility, tool use,
+response times, and output quality vary; review generated financial suggestions.
 
 ## Quick start
 
-### Prerequisites
+### Requirements
 
-- Node.js 22+
-- Docker and Docker Compose
-- A [Plaid developer account](https://dashboard.plaid.com)
-- A [Google AI Studio API key](https://aistudio.google.com/app/apikey) (for Gemini)
+- Node.js 22 or later and npm.
+- Docker Engine or Docker Desktop with Docker Compose v2 for PostgreSQL.
+- For real account data: your own [Plaid credentials](https://dashboard.plaid.com).
+- For AI features: a [Gemini API key](https://aistudio.google.com/app/apikey) or
+  a configured [OpenAI-compatible server](#local-models-beta).
 
-### Setup
+Demo mode needs neither Plaid nor AI credentials to display the dashboard.
+AI features still require a configured provider. Powerhour is not affiliated
+with Plaid; deployers are responsible for their credentials and API usage.
+
+Run all commands below from the repository root unless stated otherwise.
+
+### 1. Install and configure
 
 ```bash
-git clone https://github.com/your-username/powerhour.git
+git clone --branch dev https://github.com/aidandevv/powerhour.git
 cd powerhour
-npm install
-
-# Generate secrets and configure environment
+npm ci
 npm run setup
+```
 
-# Fill in Plaid credentials, database URL, and Gemini API key
-nano .env
+Choose **demo** to try synthetic data or **production** for real account data.
+The wizard generates database credentials, encryption and session secrets, and
+a dashboard password hash in `.env`. Choose **No** if it offers to run migration
+and startup commands: those commands target the release Compose layout, while
+this checkout uses `docker/docker-compose.yml`.
 
-# Start PostgreSQL
-docker compose -f docker/docker-compose.yml up db -d
+For this Node.js development setup, edit `.env`:
 
-# Push database schema
-npm run db:push
+- Change only the hostname in `DATABASE_URL` from `db` to `127.0.0.1`. Keep the
+  generated username, URL-encoded password, port, and database name intact.
+- Keep `DATABASE_SSL=disable` for the bundled local database.
+- For demo mode, set both `DEMO_MODE=true` and `NEXT_PUBLIC_DEMO_MODE=true`.
+- Configure AI using the [provider settings](#ai-configuration) if needed.
 
-# Start development server
+Never commit `.env`. If configuring it manually from `.env.example`, generate
+all required secrets and single-quote `DASHBOARD_PASSWORD_HASH` so Compose does
+not interpret the `$` characters in the bcrypt hash.
+
+### 2. Start a development database
+
+The deployment Compose file keeps PostgreSQL internal. This development-only
+command explicitly publishes it on the host loopback interface:
+
+```bash
+docker compose --env-file .env --project-name powerhour-dev \
+  -f docker/docker-compose.yml run --detach \
+  --name powerhour-dev-db --publish 127.0.0.1:5432:5432 db
+
+# Wait until this reports that the database is accepting connections.
+docker exec powerhour-dev-db pg_isready -U finance_app -d finance
+```
+
+These commands use the wizard's default database user and name. If you changed
+them, substitute your configured values. If port 5432 is occupied, choose a
+different host port and update `DATABASE_URL` to match.
+
+### 3. Migrate and run
+
+```bash
+node --env-file=.env scripts/migrate.mjs
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and log in with your password.
+Open [localhost:3000](http://localhost:3000). Use the demo login button in demo
+mode or your configured password otherwise. The migration script does not load
+`.env` itself; `--env-file=.env` supplies it. Next.js loads `.env` for the app.
 
-### Demo mode
+Stop the development database with `docker stop powerhour-dev-db`; start it
+again with `docker start powerhour-dev-db`. Its data persists in the
+`powerhour-dev_pgdata` Docker volume.
 
-To run without Plaid credentials, set `DEMO_MODE=true` and `NEXT_PUBLIC_DEMO_MODE=true` in `.env`. The app seeds realistic fake data on startup — two institutions, four accounts, 6 months of transactions, recurring items, budget goals, and savings targets.
+### Demo behavior
 
----
+Demo mode seeds synthetic institutions, accounts, transactions, recurring items,
+budget goals, and savings targets. It bypasses password verification, makes
+Plaid operations no-ops, and disables scheduled jobs. Use a dedicated demo
+database and keep it separate from real financial data.
 
-## Production deployment
+`NEXT_PUBLIC_DEMO_MODE` is a build-time client setting. The supplied Dockerfile
+builds with demo UI disabled; changing runtime environment variables alone does
+not enable its demo button or banner. Use the Node.js setup above for a complete
+demo experience. Restart the development server after changing demo settings.
 
-### Docker Compose
+## AI configuration
 
-```bash
-# On your server
-git clone https://github.com/your-username/powerhour.git /opt/powerhour
-cd /opt/powerhour
-cp .env.example .env && nano .env
+Google Gemini is the default provider, with `gemini-3.5-flash-lite` as the default
+model. Set `GEMINI_API_KEY` in `.env`; keep it server-side, without a
+`NEXT_PUBLIC_` prefix.
 
-# Build and start all services (app, db, nginx)
-docker compose -f docker/docker-compose.yml up -d --build
+The default uses an explicit stable model ID rather than a moving `latest`
+alias. `AI_MODEL` and per-feature overrides take precedence, so existing explicit
+pins are preserved. Review [Google's model reference](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)
+and [deprecation schedule](https://ai.google.dev/gemini-api/docs/deprecations)
+when updating pins.
 
-# Push schema
-docker compose -f docker/docker-compose.yml exec app npx drizzle-kit push
+### Local models (Beta)
+
+Run a server implementing OpenAI-compatible Chat Completions and load a model
+that supports tool calling. Configure `.env`, replacing `your-installed-model`
+with the model's actual identifier:
+
+```dotenv
+AI_PROVIDER=openai-compatible
+AI_BASE_URL=http://localhost:11434/v1
+AI_MODEL=your-installed-model
 ```
 
-### TLS
+This routes **Ticker, Budget Planner, report summaries, smart budget goals,
+and weekly digests** through the selected server. All five integrations remain
+**Beta**. A Gemini key is unnecessary with this provider. Restart the app after
+changing configuration, then check **Settings → AI models** for configuration
+status and each feature's model. This status does not test server connectivity.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `AI_PROVIDER` | `google` | `google` or `openai-compatible`. |
+| `AI_MODEL` | `gemini-3.5-flash-lite` for Google | Required model ID for OpenAI-compatible servers. |
+| `AI_BASE_URL` | Unset | OpenAI-compatible base URL, normally ending in `/v1`. |
+| `AI_API_KEY` | Unset | Optional bearer token for a server requiring authentication. |
+| `AI_MODEL_CHAT`, `AI_MODEL_PLANNER`, `AI_MODEL_REPORT`, `AI_MODEL_GOALS`, `AI_MODEL_DIGEST` | `AI_MODEL` | Optional model override for each feature. |
+| `AI_STRUCTURED_OUTPUTS` | `true` | Set `false` if the server rejects JSON Schema response formats for budget goals. |
+
+| Limit | Gemini default | Local-model Beta default |
+| --- | --- | --- |
+| `AI_CHAT_MAX_STEPS` | 8 | 8 |
+| `AI_PLANNER_MAX_STEPS` | 16 | 16 |
+| `AI_CHAT_TIMEOUT_MS` | 90000 | 300000 |
+| `AI_PLANNER_TIMEOUT_MS` | 120000 | 600000 |
+| `AI_REPORT_TIMEOUT_MS` | 15000 | 180000 |
+| `AI_GOALS_TIMEOUT_MS` | 30000 | 180000 |
+| `AI_DIGEST_TIMEOUT_MS` | 30000 | 180000 |
+
+Explicit limit variables override provider defaults. Longer timeouts do not
+guarantee a model can complete the request.
+
+**Ollama context.** Agent prompts and tool schemas need a substantial context
+window. Start with at least 16384 tokens if the model and available memory
+support it. Configure the Ollama server with
+`OLLAMA_CONTEXT_LENGTH=16384 ollama serve`, or set `PARAMETER num_ctx 16384` in a
+model's Modelfile. Powerhour does not send `num_ctx` through Chat Completions.
+See [Ollama's OpenAI compatibility guide](https://docs.ollama.com/api/openai-compatibility)
+and [server configuration](https://docs.ollama.com/faq).
+
+**Docker networking.** A container's `localhost` is the container itself. For a
+model server on the host, use
+`AI_BASE_URL=http://host.docker.internal:11434/v1`; both Compose files include a
+host-gateway mapping. The model server must listen on an interface reachable
+from Docker. Restrict access to that interface. On macOS, use native Ollama for
+GPU acceleration; Ollama's Docker setup does not support GPU acceleration on
+Docker Desktop for macOS. See the [Ollama FAQ](https://docs.ollama.com/faq).
+
+## Docker deployment
+
+Use a reviewed commit from your deployment branch. The commands below build
+from source and do not assume a published release image or release assets exist.
+See [releases](https://github.com/aidandevv/powerhour/releases) for published
+versions; the version in `package.json` alone is not a published release.
+
+### Build and start from source
+
+Install dependencies and run `npm run setup` as described above, choosing
+**production** and declining automatic Compose startup. In `.env`:
+
+- Set both demo flags to `false`.
+- Use `db` as the `DATABASE_URL` hostname, matching the Compose service.
+- Keep database credentials consistent with `POSTGRES_USER`,
+  `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
+- Set `NEXT_PUBLIC_APP_URL` to your HTTPS URL and configure Plaid and AI.
+- Set `TRUSTED_PROXY_HOPS` to the exact number of forwarding proxies in front
+  of the app, usually `1` for a single reverse proxy.
 
 ```bash
-sudo apt install certbot
-sudo certbot certonly --standalone -d finance.yourdomain.com
+docker compose --env-file .env -f docker/docker-compose.yml build app
+docker compose --env-file .env -f docker/docker-compose.yml up -d db
+docker compose --env-file .env -f docker/docker-compose.yml \
+  run --rm app node scripts/migrate.mjs
+docker compose --env-file .env -f docker/docker-compose.yml up -d app
+
+docker compose --env-file .env -f docker/docker-compose.yml ps
+curl -fsS http://127.0.0.1:3000/api/health
 ```
 
-Update `nginx.conf` with your certificate paths. Auto-renewal:
+Migrate before starting the app on a fresh database and before starting an
+updated version. The source Compose file has no separate `migrate` service;
+that service belongs to the [release Compose layout](deploy/docker-compose.yml).
+The release layout requires `POWERHOUR_IMAGE` to reference an available image.
+
+The app binds to `127.0.0.1:3000` by default, and PostgreSQL has no published
+port. Put an HTTPS reverse proxy in front of the app; production session cookies
+are secure cookies. TLS, HSTS, and proxy-level CSP depend on that deployment.
+Allow streaming responses without buffering and size upstream timeouts for
+the configured AI limits, including the longer local-model Beta defaults.
+
+The optional `tls` Compose profile starts the bundled nginx service. Provision
+certificates and update [its configuration](docker/nginx/nginx.conf) for your
+domain first. Its existing 180-second upstream timeouts may need increasing
+for local models. Configure certificate renewal with your certificate manager.
+
+`TRUSTED_PROXY_HOPS=0` ignores forwarding headers and shares one client rate-limit
+bucket. A value higher than the actual proxy count permits client-address
+spoofing. Keep the app's direct port inaccessible to untrusted clients when
+trusting proxy headers.
+
+### Backups and upgrades
+
+Before upgrading, back up the database and securely preserve `.env`, especially
+`ENCRYPTION_KEY`. Losing the encryption key prevents decryption of stored data.
+Use encrypted backup storage; database dumps contain financial information.
+
+For the default database user and name:
 
 ```bash
-echo "0 3 * * * certbot renew --quiet --deploy-hook 'docker compose -f /opt/powerhour/docker/docker-compose.yml restart nginx'" | sudo crontab -
+mkdir -p backups
+docker compose --env-file .env -f docker/docker-compose.yml exec -T db \
+  pg_dump -U finance_app -d finance > "backups/finance-$(date +%Y%m%d-%H%M%S).sql"
 ```
 
-### Database backups
+Test restoring backups into a separate database. For an upgrade, review the
+changes, take a backup, stop the app, rebuild the image, run migrations, then
+start the app and check `/api/health`. Do not delete the database volume during
+an upgrade.
+
+## Privacy and security
+
+- Plaid access tokens and selected account and recurring-item fields use
+  AES-256-GCM encryption. The entire database is not encrypted by the app.
+- Agent query views omit sensitive token fields. They reduce accidental
+  exposure; the app still uses a shared database connection and role.
+- Chat, planner, report, and budget-goal prompts mask supported account,
+  institution, and merchant names. This is not complete anonymization: amounts,
+  dates, categories, and other financial context can reach the configured AI
+  provider. Weekly digests also send financial summaries to that provider.
+- Local inference changes the AI endpoint. Plaid sync and planner web search
+  still use external services; the application is not fully offline.
+- Sessions use encrypted, HTTP-only cookies. Login and API limits are held in
+  process memory and are not shared across replicas or preserved on restart.
+- Plaid webhook verification checks signatures and body hashes. The audit log
+  records selected authentication, institution, and report events; it is not
+  an immutable record of every operation.
+
+Keep database and model endpoints private, preserve secrets outside version
+control, and use HTTPS for deployed instances. Do not use demo mode with real
+financial data or expose its password-bypassing login publicly.
+
+## Development and testing
 
 ```bash
-# Daily encrypted backup via cron
-docker compose -f /opt/powerhour/docker/docker-compose.yml exec -T db \
-  pg_dump -U finance_app finance | \
-  gpg --symmetric --batch --passphrase-file /opt/powerhour/.backup-passphrase \
-  > /opt/powerhour/backups/finance_$(date +%Y%m%d).sql.gpg
-
-# Restore
-gpg --decrypt backup_file.sql.gpg | docker compose exec -T db psql -U finance_app finance
+npm run lint
+npm run typecheck
+npm test
+npm run test:coverage
+npm run build
+npm audit --omit=dev --audit-level=high
 ```
 
----
+Integration tests require a migrated, disposable PostgreSQL database ending
+in `_test`; they truncate fixtures. Browser tests also require that database
+and Chromium. Follow [the testing guide](docs/TESTING.md) to enable both tiers.
+Without `TEST_DATABASE_URL`, database integration suites skip. Live-model smoke
+tests are opt-in; default tests use deterministic model fixtures.
+
+GitHub Actions runs on pull requests and pushes to `dev`, `stable`, and `main`,
+and by manual dispatch. It checks lint, types, coverage with database integration,
+browser smoke flows, a production dependency audit, the Next.js build, both
+Compose layouts, and a Docker image build. Test evidence is retained for 14 days.
+The separate tag-triggered release workflow is defined in
+[release.yml](.github/workflows/release.yml); a passing development build does
+not establish that a release has been published.
 
 ## Architecture
 
-### AI agents
+| Layer | Implementation |
+| --- | --- |
+| Web application | Next.js 16 App Router, React 19, TypeScript in strict mode. |
+| UI | Tailwind CSS 4, Radix UI, Recharts, and SWR. |
+| Persistence | PostgreSQL 16, Drizzle ORM, SQL migrations, and query views. |
+| AI | Vercel AI SDK 6 with Gemini or OpenAI-compatible Chat Completions. |
+| Authentication | iron-session and bcrypt password verification. |
+| Financial data | Plaid Link, cursor-based transaction sync, balance snapshots, and webhooks. |
+| Reporting | PDFKit with in-memory charts and PDF rendering. |
+| Hosting | Node.js or Docker Compose, with an external or optional bundled TLS proxy. |
 
-**Ticker** (`lib/agent/agent.ts`) — ReAct agent with 15 tools, 8-step iteration cap, 30-second timeout. Tools query spending summaries, account balances, transactions, recurring expenses, cash flow forecasts, anomalies, debt payoff timelines, and more. Streams responses via SSE.
+Routes live in `app/`, UI components in `components/`, and server modules in
+`lib/`. Ticker and Budget Planner stream tool-assisted responses; the planner's
+three modes share a tool set that includes DuckDuckGo search. Tables are defined
+in [schema.ts](lib/db/schema.ts) and agent query views in
+[views.ts](lib/db/views.ts). Fresh-install bootstrap and upgrades are handled
+by [scripts/migrate.mjs](scripts/migrate.mjs).
 
-**Budget Planner** (`lib/agent/budget-planner-agent.ts`) — 16-step cap, 120-second timeout. Supports web search via Google Grounding. Three intent-detected modes with distinct tool sets and conversation flows.
+The in-process scheduler starts through `instrumentation.ts`: daily Plaid sync
+at 06:00 and a weekly digest on Mondays at 08:00, in the server's local timezone.
+Settings toggles take effect on the next scheduled tick. Jobs require a running
+process and are disabled in demo mode. Multiple app replicas each start a
+scheduler, so deployments need to coordinate scheduling before scaling out.
 
-### Plaid integration
+## Contributing and license
 
-- **Link flow** — Plaid Link widget → link token → access token exchange (encrypted immediately)
-- **Sync** — Cursor-based pagination via Plaid Transactions Sync API with transaction upserts and balance snapshots
-- **Webhooks** — Signature-verified handlers for sync updates and item error events
-- **Recurring detection** — Frequency analysis (weekly/biweekly/monthly/annually) populates the recurring items table
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development conventions and pull
+request requirements. The project is licensed under [ISC](LICENSE).
 
-### Scheduler
-
-In-process cron started via Next.js `instrumentation.ts`. Daily Plaid sync at 06:00, weekly AI digest on Mondays at 08:00. Both jobs respect database toggles — changes in Settings take effect on the next tick without a restart.
-
----
-
-## Database
-
-16 tables and 2 security views. Key tables:
-
-| Table | Purpose |
-|---|---|
-| `institutions` | Plaid-linked banks with encrypted access tokens and sync state |
-| `accounts` | Individual accounts with balances and credit limits |
-| `transactions` | All transactions with category, merchant, payment channel |
-| `balance_snapshots` | Daily per-account snapshots for historical charts |
-| `recurring_items` | Detected recurring expenses with frequency and projected dates |
-| `budget_plans` | Budget planner sessions with full message history (JSONB) |
-| `savings_targets` | Goals with target amount, date, and monthly savings rate |
-| `budget_goals` | AI-generated spending caps per category |
-| `audit_log` | Immutable event log with IP and metadata |
-
-Migrations managed with Drizzle Kit (`npm run db:push` for development, manual migrations for production).
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.
-
-## License
-
-ISC
-
-## Font attribution
-
-This project includes PP Mori and PP Kyoto font files under `public/fonts/`.
-
-- PP Mori: https://pangrampangram.com/products/mori
-- PP Kyoto: https://pangrampangram.com/products/pp-kyoto
-
-Use of these font files in derivative deployments is subject to the respective font license terms from Pangram Pangram.
+Powerhour uses system font stacks and ships no proprietary font binaries.
+See [the font policy](docs/FONTS.md) before adding custom fonts.

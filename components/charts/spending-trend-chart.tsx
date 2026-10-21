@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSpendingTrends } from "@/hooks/use-dashboard";
+import { asNumber } from "./formatters";
 
 export function SpendingTrendChart() {
   const { data, isLoading } = useSpendingTrends();
@@ -50,8 +51,8 @@ export function SpendingTrendChart() {
                 fontSize={12}
               />
               <Tooltip
-                formatter={(value: number) => [
-                  `$${value.toLocaleString("en-US", {
+                formatter={(value) => [
+                  `$${asNumber(value).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                   })}`,
                   "Spending",

@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCategoryTrends } from "@/hooks/use-dashboard";
 import { formatCategory } from "@/lib/utils";
+import { asNumber, asText } from "./formatters";
 
 const SPARKLINE_COLORS = [
   "hsl(205, 59%, 25%)",
@@ -68,11 +69,11 @@ export function CategorySparklinesChart() {
                     <LineChart data={cat.data}>
                       <XAxis dataKey="month" tickFormatter={fmtMonth} hide />
                       <Tooltip
-                        formatter={(value: number) => [
-                          `$${value.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                        formatter={(value) => [
+                          `$${asNumber(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
                           formatCategory(cat.category),
                         ]}
-                        labelFormatter={fmtMonth}
+                        labelFormatter={(label) => fmtMonth(asText(label))}
                       />
                       <Line
                         type="monotone"

@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useChannelTrends } from "@/hooks/use-dashboard";
+import { asNumber, asText } from "./formatters";
 
 export function PaymentChannelChart() {
   const { data, isLoading } = useChannelTrends(6);
@@ -47,10 +48,13 @@ export function PaymentChannelChart() {
                 fontSize={11}
               />
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  `$${value.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-                  name === "online" ? "Online" : name === "inStore" ? "In Store" : "Other",
-                ]}
+                formatter={(value, name) => {
+                  const series = asText(name);
+                  return [
+                    `$${asNumber(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+                    series === "online" ? "Online" : series === "inStore" ? "In Store" : "Other",
+                  ];
+                }}
               />
               <Legend
                 formatter={(value) =>

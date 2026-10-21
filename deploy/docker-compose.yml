@@ -1,0 +1,87 @@
+name: powerhour
+
+services:
+  app:
+    image: ${POWERHOUR_IMAGE:?Set POWERHOUR_IMAGE to your published container image}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_SSL: ${DATABASE_SSL:-disable}
+      PLAID_CLIENT_ID: ${PLAID_CLIENT_ID:-}
+      PLAID_SECRET: ${PLAID_SECRET:-}
+      PLAID_ENV: ${PLAID_ENV:-development}
+      PLAID_WEBHOOK_URL: ${PLAID_WEBHOOK_URL:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      DASHBOARD_PASSWORD_HASH: ${DASHBOARD_PASSWORD_HASH:?DASHBOARD_PASSWORD_HASH is required}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-google}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_STRUCTURED_OUTPUTS: ${AI_STRUCTURED_OUTPUTS:-}
+      AI_MODEL_CHAT: ${AI_MODEL_CHAT:-}
+      AI_MODEL_PLANNER: ${AI_MODEL_PLANNER:-}
+      AI_MODEL_DIGEST: ${AI_MODEL_DIGEST:-}
+      AI_MODEL_REPORT: ${AI_MODEL_REPORT:-}
+      AI_MODEL_GOALS: ${AI_MODEL_GOALS:-}
+      AI_CHAT_MAX_STEPS: ${AI_CHAT_MAX_STEPS:-}
+      AI_CHAT_TIMEOUT_MS: ${AI_CHAT_TIMEOUT_MS:-}
+      AI_PLANNER_MAX_STEPS: ${AI_PLANNER_MAX_STEPS:-}
+      AI_PLANNER_TIMEOUT_MS: ${AI_PLANNER_TIMEOUT_MS:-}
+      AI_DIGEST_TIMEOUT_MS: ${AI_DIGEST_TIMEOUT_MS:-}
+      AI_REPORT_TIMEOUT_MS: ${AI_REPORT_TIMEOUT_MS:-}
+      AI_GOALS_TIMEOUT_MS: ${AI_GOALS_TIMEOUT_MS:-}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-false}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # Set to the number of reverse proxies in front of the app (see env.example).
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Lets AI_BASE_URL point at a model server on the host (e.g. Ollama) on Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${POWERHOUR_HOST:-127.0.0.1}:${POWERHOUR_PORT:-3000}:3000"
+    networks: [internal]
+
+  migrate:
+    image: ${POWERHOUR_IMAGE:?Set POWERHOUR_IMAGE to your published container image}
+    restart: "no"
+    profiles: ["tools"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_SSL: ${DATABASE_SSL:-disable}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["node", "scripts/migrate.mjs"]
+    networks: [internal]
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-finance_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-finance}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-finance_app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+
+networks:
+  internal:
+    driver: bridge
