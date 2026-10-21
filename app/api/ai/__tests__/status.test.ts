@@ -29,12 +29,19 @@ describe("AI provider display status", () => {
     expect(data.features.chat).toEqual({ modelId: null, configured: false });
   });
 
-  it("preserves the hosted default and reports missing setup honestly", async () => {
+  it("exposes the Gemini pin for every hosted feature and reports missing setup honestly", async () => {
     vi.stubEnv("AI_PROVIDER", "google");
+    vi.stubEnv("AI_MODEL", "");
+    for (const feature of ["CHAT", "PLANNER", "REPORT", "GOALS", "DIGEST"]) {
+      vi.stubEnv(`AI_MODEL_${feature}`, "");
+    }
     vi.stubEnv("GEMINI_API_KEY", "");
     const data = await GET().json();
     expect(data.beta).toBe(false);
-    expect(data.features.chat.configured).toBe(false);
+    expect(Object.keys(data.features)).toHaveLength(5);
+    for (const feature of Object.values(data.features)) {
+      expect(feature).toEqual({ modelId: "gemini-3.5-flash-lite", configured: false });
+    }
   });
 
   it("does not reflect invalid provider input", async () => {

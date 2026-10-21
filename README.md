@@ -128,9 +128,15 @@ demo experience. Restart the development server after changing demo settings.
 
 ## AI configuration
 
-Google Gemini is the default provider, with `gemini-2.5-flash-lite` as the default
+Google Gemini is the default provider, with `gemini-3.5-flash-lite` as the default
 model. Set `GEMINI_API_KEY` in `.env`; keep it server-side, without a
 `NEXT_PUBLIC_` prefix.
+
+The default uses an explicit stable model ID rather than a moving `latest`
+alias. `AI_MODEL` and per-feature overrides take precedence, so existing explicit
+pins are preserved. Review [Google's model reference](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)
+and [deprecation schedule](https://ai.google.dev/gemini-api/docs/deprecations)
+when updating pins.
 
 ### Local models (Beta)
 
@@ -153,7 +159,7 @@ status and each feature's model. This status does not test server connectivity.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `AI_PROVIDER` | `google` | `google` or `openai-compatible`. |
-| `AI_MODEL` | `gemini-2.5-flash-lite` for Google | Required model ID for OpenAI-compatible servers. |
+| `AI_MODEL` | `gemini-3.5-flash-lite` for Google | Required model ID for OpenAI-compatible servers. |
 | `AI_BASE_URL` | Unset | OpenAI-compatible base URL, normally ending in `/v1`. |
 | `AI_API_KEY` | Unset | Optional bearer token for a server requiring authentication. |
 | `AI_MODEL_CHAT`, `AI_MODEL_PLANNER`, `AI_MODEL_REPORT`, `AI_MODEL_GOALS`, `AI_MODEL_DIGEST` | `AI_MODEL` | Optional model override for each feature. |

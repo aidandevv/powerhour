@@ -5,7 +5,7 @@
  * with environment variables:
  *
  *   AI_PROVIDER   google (default) | openai-compatible
- *   AI_MODEL      model id; defaults to gemini-2.5-flash-lite for google
+ *   AI_MODEL      model id; defaults to gemini-3.5-flash-lite for google
  *   AI_MODEL_<FEATURE>  per-feature override (CHAT, PLANNER, DIGEST, REPORT, GOALS)
  *   AI_BASE_URL   OpenAI-compatible endpoint, e.g. http://localhost:11434/v1
  *   AI_API_KEY    optional bearer token for the OpenAI-compatible endpoint
@@ -27,11 +27,11 @@ export type AgentFeature = Extract<AiFeature, "chat" | "planner">;
 
 type Env = Record<string, string | undefined>;
 
-export const DEFAULT_GOOGLE_MODEL = "gemini-2.5-flash-lite";
+export const DEFAULT_GOOGLE_MODEL = "gemini-3.5-flash-lite";
 
 const PROVIDERS: readonly AiProvider[] = ["google", "openai-compatible"];
 
-/** Defaults match the behavior tuned for Gemini 2.5 Flash Lite. */
+/** Hosted-provider limits; environment variables can override each feature. */
 const DEFAULT_TIMEOUT_MS: Record<AiFeature, number> = {
   chat: 90_000,
   planner: 120_000,

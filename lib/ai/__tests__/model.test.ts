@@ -51,18 +51,24 @@ describe("resolveProvider", () => {
 });
 
 describe("resolveAiConfig", () => {
-  it("defaults to gemini-2.5-flash-lite on google", () => {
+  it("defaults to the stable Gemini Flash-Lite pin on google", () => {
     expect(resolveAiConfig("chat", {})).toEqual({
       provider: "google",
       modelId: DEFAULT_GOOGLE_MODEL,
     });
-    expect(DEFAULT_GOOGLE_MODEL).toBe("gemini-2.5-flash-lite");
+    expect(DEFAULT_GOOGLE_MODEL).toBe("gemini-3.5-flash-lite");
   });
 
   it("uses AI_MODEL on google when set", () => {
-    expect(resolveAiConfig("digest", { AI_MODEL: "gemini-2.5-flash" }).modelId).toBe(
-      "gemini-2.5-flash"
+    expect(resolveAiConfig("digest", { AI_MODEL: "gemini-3.8-flash" }).modelId).toBe(
+      "gemini-3.8-flash"
     );
+  });
+
+  it("preserves explicit legacy pins and per-feature Google overrides", () => {
+    const env = { AI_MODEL: "gemini-2.5-flash-lite", AI_MODEL_PLANNER: "gemini-3.8-flash" };
+    expect(resolveAiConfig("planner", env).modelId).toBe("gemini-3.8-flash");
+    expect(resolveAiConfig("report", env).modelId).toBe("gemini-2.5-flash-lite");
   });
 
   it("prefers per-feature overrides over AI_MODEL", () => {
@@ -117,11 +123,11 @@ describe("getLanguageModel", () => {
     vi.clearAllMocks();
   });
 
-  it("builds a Gemini model by default", () => {
-    const model = getLanguageModel("chat", { GEMINI_API_KEY: "test-key" });
+  it.each(["chat", "planner", "report", "goals", "digest"] as const)("builds %s with the Gemini pin by default", (feature) => {
+    const model = getLanguageModel(feature, { GEMINI_API_KEY: "test-key" });
     expect(googleFactoryMock).toHaveBeenCalledWith({ apiKey: "test-key" });
-    expect(googleModelMock).toHaveBeenCalledWith("gemini-2.5-flash-lite");
-    expect(model).toEqual({ provider: "google", id: "gemini-2.5-flash-lite" });
+    expect(googleModelMock).toHaveBeenCalledWith("gemini-3.5-flash-lite");
+    expect(model).toEqual({ provider: "google", id: "gemini-3.5-flash-lite" });
     expect(openaiCompatibleFactoryMock).not.toHaveBeenCalled();
   });
 
